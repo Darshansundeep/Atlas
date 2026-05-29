@@ -1,0 +1,12 @@
+[package]
+name = "atlas-branding"
+description = "Atlas identity constants — single source of truth for Rust call sites. Mirrors ui/desktop/src/branding/index.ts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true

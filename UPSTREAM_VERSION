@@ -1,0 +1,16 @@
+# UPSTREAM_VERSION
+
+This file pins the upstream `block/goose` revision that Atlas is forked from.
+It is read by CI gates (e.g. attribution checksum verification) and by the
+upstream-sync process (deferred to spec `010-upstream-sync`).
+
+upstream_repo:    https://github.com/block/goose
+upstream_tag:     v1.36.0
+upstream_commit:  f13f369a67db04b52f74d37a2f39f6459e4d10fe
+upstream_date:    2026-05-29 (clone date; not the tag's authoring date)
+
+# Attribution checksums (per Atlas Constitution Principle III; spec FR-008, SC-004).
+# CI MUST verify these match the live file checksums on every PR.
+
+license_sha256:   44459b86c2e96fdbfd8a6b5c33d30d4b04b5293fcb2ec96fe4dcc4e0f90b8962
+notice_sha256:    n/a — upstream Goose at v1.36.0 ships no NOTICE file; Apache 2.0 §4(d) is therefore not engaged. See LAYOUT_NOTES.md and the spec amendment for FR-009.

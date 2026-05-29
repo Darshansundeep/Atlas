@@ -1,0 +1,98 @@
+name: Atlas CI
+
+# Atlas-specific quality gates. Runs alongside upstream's ci.yml (which is left
+# untouched to minimize merge conflicts when syncing from upstream). Every job
+# below is REQUIRED to pass before any PR can merge to main.
+#
+# Tasks: T010, T011, T011a, T011b, T011c in specs/001-rebrand-pass/tasks.md.
+# Contracts: specs/001-rebrand-pass/contracts/identity-constants.md.
+# Constitution: .specify/memory/constitution.md (Principle III, IV, §Security).
+
+on:
+  push:
+    branches: [main, '0[0-9][0-9]-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  # T010 — UI branding ↔ Rust branding ↔ build manifests in lockstep.
+  # Contract: R-IC-001, R-IC-002, R-IC-003.
+  identity-constants-in-sync:
+    name: Identity constants in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify branding module ↔ Rust constants ↔ manifests agree
+        run: bash tools/scripts/check-identity-in-sync.sh
+
+  # T011 — No literal "Atlas" / "Goose" strings outside the allowlist.
+  # Contract: R-IC-004, R-IC-005.
+  forbid-literal-product-names:
+    name: Forbid literal product names
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint for stray identity literals
+        run: bash tools/scripts/check-identity-literals.sh
+
+  # T011a — Reject denylisted licenses (Principle III).
+  # Layered on top of upstream `deny.toml` via Atlas's `deny.atlas.toml`.
+  license-denylist:
+    name: License denylist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@a531616d8ce3b9177443e48a1159bc945a099823
+        with:
+          command: check licenses
+          arguments: --config deny.atlas.toml
+
+  # T011b — Secret scanning (Constitution §Security Requirements).
+  secret-scanner:
+    name: Secret scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # T011c — Upstream Goose's full automated test suite, on all three OSes.
+  # Must be green before any Atlas-specific user-story test jobs run.
+  # Trace: spec SC-003, FR-012.
+  upstream-test-suite:
+    name: Upstream test suite (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: Rust workspace tests
+        run: cargo test --workspace --no-fail-fast
+      - name: UI install
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+      - name: UI typecheck
+        working-directory: ui/desktop
+        run: pnpm run typecheck
+      - name: UI lint
+        working-directory: ui/desktop
+        run: pnpm run lint

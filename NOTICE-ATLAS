@@ -1,0 +1,11 @@
+Atlas
+Copyright 2026 NET Group
+
+Atlas is a fork of Goose (https://github.com/block/goose), Apache License 2.0.
+See LICENSE for terms.
+
+This file is reserved for Atlas-owned attributions to third-party components
+introduced by NET Group on top of upstream Goose. Append-only; entries are
+added by PRs that introduce new third-party dependencies or assets.
+
+(no Atlas-owned attributions yet)

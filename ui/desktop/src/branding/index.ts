@@ -1,0 +1,50 @@
+/**
+ * Atlas Identity Constants — single source of truth for the desktop UI.
+ *
+ * Every UI component that needs to render the product name, vendor, URL
+ * scheme, env-var prefix, or other identity attribute MUST import from
+ * here. No identity string MAY be embedded as a literal anywhere else
+ * in `ui/desktop/src/`.
+ *
+ * Contract: see `specs/001-rebrand-pass/contracts/identity-constants.md`.
+ * Rust-side equivalent: `crates/atlas-branding/src/lib.rs`.
+ *
+ * If you need to add an identity attribute, add it here AND in the Rust
+ * branding crate in the SAME commit, and update the `identity-constants-in-sync`
+ * CI job. The lockstep is enforced.
+ */
+
+export const IDENTITY = {
+  displayName: 'Atlas',
+  productSlug: 'atlas',
+  vendor: 'NET Group',
+  vendorDomain: 'netgroup.ai',
+
+  bundleIdMacos: 'ai.netgroup.atlas',
+  appUserModelIdWindows: 'NETGroup.Atlas',
+  desktopEntryLinux: 'atlas',
+
+  urlScheme: 'atlas',
+  envVarPrefix: 'ATLAS_',
+
+  // Template variables interpolated at call site: ${version}, ${os}.
+  userAgentTemplate: 'Atlas/${version} (${os}; NET Group)',
+
+  // Upstream attribution — for the About screen ONLY. Any other use is a
+  // contract violation per R-IC-004.
+  upstreamProjectName: 'Goose',
+  upstreamProjectUrl: 'https://github.com/block/goose',
+  upstreamPinnedVersion: 'v1.36.0',
+} as const;
+
+export type Identity = typeof IDENTITY;
+
+/**
+ * Build a User-Agent string from the template. Pass the runtime app version
+ * and the OS identifier (`darwin` / `win32` / `linux` etc.).
+ */
+export function userAgent(version: string, os: string): string {
+  return IDENTITY.userAgentTemplate
+    .replace('${version}', version)
+    .replace('${os}', os);
+}

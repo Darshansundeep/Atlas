@@ -1,0 +1,48 @@
+# Atlas-specific cargo-deny configuration.
+#
+# Layered on top of upstream `deny.toml` (which covers advisories). This file
+# adds the license denylist mandated by Atlas Constitution Principle III.
+#
+# Atlas CI invokes `cargo-deny --config deny.toml --config deny.atlas.toml`
+# so both files compose. Upstream `deny.toml` is NOT edited.
+#
+# Per Constitution Principle III:
+#   "All runtime and build dependencies MUST carry an Apache-2.0, MIT,
+#    BSD-2-Clause, BSD-3-Clause, MPL-2.0, ISC, or comparably permissive
+#    license. GPL, AGPL, SSPL, BUSL, and 'source-available but non-commercial'
+#    licenses are forbidden."
+
+[licenses]
+# Allow only the permissive licenses listed in the Constitution.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+]
+# Explicit deny list — kept for clarity; anything not in `allow` is rejected.
+deny = [
+    "GPL-1.0",
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-1.0",
+    "AGPL-3.0",
+    "SSPL-1.0",
+    "BUSL-1.1",
+]
+confidence-threshold = 0.93
+
+# A few crates have unclear or dual licenses; explicit clarifications go here
+# as they're discovered. Keep this list short — every entry is a manual review.
+exceptions = []
+
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
