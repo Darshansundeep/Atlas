@@ -42,15 +42,18 @@ jobs:
 
   # T011a — Reject denylisted licenses (Principle III).
   # Layered on top of upstream `deny.toml` via Atlas's `deny.atlas.toml`.
+  # Direct invocation (instead of EmbarkStudios action) so we can place
+  # `--config` correctly as a `check` subcommand flag.
   license-denylist:
     name: License denylist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@a531616d8ce3b9177443e48a1159bc945a099823
-        with:
-          command: check licenses
-          arguments: --config deny.atlas.toml
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+      - name: Run license check with Atlas denylist
+        run: cargo deny check --config deny.atlas.toml licenses
 
   # T011b — Secret scanning (Constitution §Security Requirements).
   secret-scanner:
