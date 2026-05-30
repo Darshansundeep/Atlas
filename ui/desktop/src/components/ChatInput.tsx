@@ -22,6 +22,7 @@ import MentionPopover, { DisplayItemWithMatch } from './MentionPopover';
 import { COST_TRACKING_ENABLED } from '../updates';
 import { CostTracker } from './bottom_menu/CostTracker';
 import { ContextWindowIndicator } from './bottom_menu/ContextWindowIndicator';
+import { FEATURES } from '../branding';
 import { DroppedFile, useFileDrop } from '../hooks/useFileDrop';
 import { Recipe } from '../recipe';
 import { MessageQueue, QueuedMessage } from './MessageQueue';
@@ -1641,15 +1642,19 @@ export default function ChatInput({
               />
             )}
 
-            {/* Right: context window indicator */}
-            <ContextWindowIndicator
-              totalTokens={totalTokens || 0}
-              tokenLimit={tokenLimit}
-              alerts={alerts}
-            />
+            {/* Right: context window indicator (gated by FEATURES.contextWindowIndicator) */}
+            {FEATURES.contextWindowIndicator && (
+              <ContextWindowIndicator
+                totalTokens={totalTokens || 0}
+                tokenLimit={tokenLimit}
+                alerts={alerts}
+              />
+            )}
 
-            {/* Right: extension selector */}
-            <BottomMenuExtensionSelection sessionId={sessionId} />
+            {/* Right: extension selector (gated by FEATURES.extensionCountBadge) */}
+            {FEATURES.extensionCountBadge && (
+              <BottomMenuExtensionSelection sessionId={sessionId} />
+            )}
 
             {/* Right: diagnostics */}
             {sessionId && (
@@ -1768,13 +1773,13 @@ export default function ChatInput({
                   aria-label={intl.formatMessage(i18n.send)}
                   onClick={onFormSubmit}
                   className={cn(
-                    'bg-background-tertiary',
+                    'ml-1 h-8 w-8',
                     isSubmitButtonDisabled
-                      ? 'text-text-secondary cursor-not-allowed opacity-60'
-                      : 'text-text-primary hover:bg-background-tertiary/70 hover:cursor-pointer'
+                      ? 'bg-background-tertiary text-text-secondary cursor-not-allowed opacity-60'
+                      : 'bg-[#1F6FEB] text-white hover:bg-[#1A5EC9] hover:cursor-pointer shadow-sm'
                   )}
                 >
-                  <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
+                  <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
                 </Button>
               </span>
             </TooltipTrigger>

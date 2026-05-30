@@ -38,6 +38,10 @@ export const FEATURES = {
   apps: false,
   scheduler: false,
   extensions: false,
+
+  // Chat-input footer indicators — hidden at v1 for a clean minimal look
+  contextWindowIndicator: false,    // the 0↑/0↓ + 0/128k token counter
+  extensionCountBadge: false,       // the puzzle-piece "15" badge in the input footer
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURES;
