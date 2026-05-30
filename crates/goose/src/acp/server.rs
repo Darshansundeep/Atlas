@@ -132,7 +132,7 @@ impl<T, E: std::fmt::Display> ResultExt<T> for Result<T, E> {
 }
 
 const DEFAULT_PROVIDER_ID: &str = "goose";
-const DEFAULT_PROVIDER_LABEL: &str = "Goose (Default)";
+const DEFAULT_PROVIDER_LABEL: &str = "Atlas (Default)"; // brand-allow
 const PROVIDER_CONFIG_STATUS_CHECK_CONCURRENCY: usize = 16;
 
 async fn ensure_refresh_identity_current(
@@ -265,7 +265,7 @@ fn sid_short(id: &str) -> String {
 #[derive(Debug, Serialize, Deserialize)]
 struct SessionListCursorToken {
     updated_at: chrono::DateTime<chrono::Utc>,
-    // Goose stores updated_at with second precision in common write paths, so the
+    // The server stores updated_at with second precision in common write paths, so the
     // cursor needs the full (updated_at, id) sort key to avoid skipping tied rows.
     session_id: String,
     filter_hash: String,

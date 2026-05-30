@@ -160,7 +160,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    4. GOOSE DESKTOP UI ALIASES — @theme inline {}
    App-specific tokens that map to MCP spec tokens.
-   Not part of the MCP spec — only used by Goose components.
+   Not part of the MCP spec — only used by application components. /* brand-allow */
    ═══════════════════════════════════════════════════════════════════════════ */
 @theme inline {
   --font-serif: serif;
@@ -174,7 +174,7 @@
 
 /* ═══════════════════════════════════════════════════════════════════════════
    5. APP-SPECIFIC VARIABLES — :root / .dark
-   Goose-only variables that derive from MCP tokens. These are NOT duplicated
+   Application-only variables that derive from MCP tokens. These are NOT duplicated /* brand-allow */
    in theme-tokens.ts — they exist only here.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -403,7 +403,7 @@
     opacity: 1 !important;
   }
 
-  /* Goose icon entrance animation */
+  /* Atlas icon entrance animation */
   .goose-icon-entrance {
     animation: none !important;
     opacity: 1 !important;
@@ -673,7 +673,7 @@ pre:has(> code.bg-inline-code) {
   contain: layout style paint;
 }
 
-/* Goose icon animation to replace framer-motion */
+/* Atlas icon animation to replace framer-motion */
 @keyframes goose-icon-entrance {
   from {
     opacity: 0;

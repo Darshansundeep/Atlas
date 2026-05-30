@@ -33,7 +33,7 @@ const i18n = defineMessages({
   },
   taskNotificationsDesc: {
     id: 'settings.notifications.task.description',
-    defaultMessage: 'Notify when Goose finishes a task while the window is in the background',
+    defaultMessage: 'Notify when Atlas finishes a task while the window is in the background', // brand-allow: react-intl defaultMessage
   },
   menuBarIcon: { id: 'settings.menuBarIcon.title', defaultMessage: 'Menu bar icon' },
   menuBarIconDesc: {

@@ -71,7 +71,7 @@ fn parse_cli_flag_extensions(
     extensions_to_load
 }
 
-/// Configuration for building a new Goose session
+/// Configuration for building a new agent session  // brand-allow
 ///
 /// This struct contains all the parameters needed to create a new session,
 /// including session identification, extension configuration, and debug settings.

@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Rust SDK for talking to Goose over the Agent Client Protocol (ACP)"
+description = "Rust SDK for talking to the agent over the Agent Client Protocol (ACP)"  # brand-allow: was "Goose"
 
 [dependencies]
 agent-client-protocol = { workspace = true, features = ["unstable"] }

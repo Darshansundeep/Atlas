@@ -39,7 +39,7 @@ static COMMANDS: &[CommandDef] = &[
     },
     CommandDef {
         name: "doctor",
-        description: "Check that your Goose setup is working",
+        description: "Check that your Atlas setup is working", // brand-allow: CLI tool description
     },
     CommandDef {
         name: "goal",

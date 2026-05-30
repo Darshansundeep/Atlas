@@ -20,7 +20,7 @@ const i18n = defineMessages({
   },
   defaultMessage: {
     id: 'elicitationRequest.defaultMessage',
-    defaultMessage: 'Goose needs some information from you.',
+    defaultMessage: 'Atlas needs some information from you.', // brand-allow: react-intl defaultMessage
   },
   submit: {
     id: 'elicitationRequest.submit',

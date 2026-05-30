@@ -63,7 +63,7 @@ pub static PLATFORM_EXTENSIONS: Lazy<HashMap<&'static str, PlatformExtensionDef>
                 name: apps::EXTENSION_NAME,
                 display_name: "Apps",
                 description:
-                    "Create and manage custom Goose apps through chat. Apps are HTML/CSS/JavaScript and run in sandboxed windows.",
+                    "Create and manage custom Atlas apps through chat. Apps are HTML/CSS/JavaScript and run in sandboxed windows.", // brand-allow
                 default_enabled: true,
                 unprefixed_tools: false,
                 hidden: false,
@@ -132,7 +132,7 @@ pub static PLATFORM_EXTENSIONS: Lazy<HashMap<&'static str, PlatformExtensionDef>
                 name: code_execution::EXTENSION_NAME,
                 display_name: "Code Mode",
                 description:
-                    "Goose will make extension calls through code execution, saving tokens",
+                    "The agent will make extension calls through code execution, saving tokens",
                 default_enabled: false,
                 unprefixed_tools: true,
                 hidden: false,

@@ -37,7 +37,7 @@ import CreateRecipeFromSessionModal from './recipes/CreateRecipeFromSessionModal
 import { toastSuccess } from '../toasts';
 import { Recipe } from '../recipe';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
-import { Goose } from './icons';
+import { Goose } from './icons'; // brand-allow: internal component import
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
 
 const i18n = defineMessages({
@@ -405,7 +405,7 @@ export default function BaseChat({
 
         {/* Chat container with sticky recipe header */}
         <div className="flex flex-col flex-1 min-h-0 relative">
-          {/* Goose watermark - top right */}
+          {/* brand-allow: app watermark - top right */}
           <div className="absolute top-3 right-4 z-[60] flex flex-row items-center gap-1">
             <a
               href="https://goose-docs.ai"
@@ -413,7 +413,7 @@ export default function BaseChat({
               rel="noopener noreferrer"
               className="no-drag flex flex-row items-center gap-1 hover:opacity-80 transition-opacity"
             >
-              <Goose className="size-5 goose-icon-animation" />
+              <Goose className="size-5 goose-icon-animation" /> {/* brand-allow: internal component */}
               <span className="text-sm leading-none text-text-secondary -translate-y-px">
                 goose
               </span>

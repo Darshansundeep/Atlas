@@ -227,7 +227,7 @@ const SETUP_METADATA: &[CuratedSetupMetadata] = &[
         category: ProviderSetupCategory::Agent,
         setup_method: ProviderSetupMethod::None,
         group: ProviderSetupGroup::Default,
-        display_name: Some("Goose"),
+        display_name: Some("Atlas"), // brand-allow: catalog default display name
         description: Some("Block's open-source coding agent"),
         docs_url: None,
         aliases: &["goose"],
@@ -911,7 +911,7 @@ fn setup_entry_from_metadata(
 fn synthetic_goose_setup_entry(curated: &CuratedSetupMetadata) -> ProviderSetupCatalogEntry {
     ProviderSetupCatalogEntry {
         provider_id: curated.provider_id.to_string(),
-        display_name: curated.display_name.unwrap_or("Goose").to_string(),
+        display_name: curated.display_name.unwrap_or("Atlas").to_string(), // brand-allow: catalog fallback display name
         category: ProviderSetupCategory::Agent,
         description: curated.description.unwrap_or_default().to_string(),
         setup_method: ProviderSetupMethod::None,

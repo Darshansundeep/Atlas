@@ -66,7 +66,7 @@ pub(super) fn load_tiny_model_prompt() -> String {
 
     crate::prompt_template::render_template("tiny_model_system.md", &context).unwrap_or_else(|e| {
         tracing::warn!("Failed to load tiny_model_system.md: {:?}", e);
-        "You are Goose, an AI assistant. You can execute shell commands by starting lines with $."
+        "You are Atlas, an AI assistant. You can execute shell commands by starting lines with $." // brand-allow: LLM system prompt
             .to_string()
     })
 }

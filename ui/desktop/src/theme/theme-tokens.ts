@@ -10,7 +10,7 @@
  * class generation — it does NOT define values.
  *
  * These tokens serve two purposes:
- *  1. Goose desktop — applied to :root per resolved theme.
+ *  1. The desktop client — applied to :root per resolved theme. // brand-allow
  *  2. MCP apps — encoded as light-dark() in hostContext.styles.variables.
  */
 import type {

@@ -83,7 +83,7 @@ const MENU_TRANSLATIONS_ZH_CN: Record<string, string> = {
   Cut: '剪切',
   Copy: '复制',
   Paste: '粘贴',
-  // Goose-added items
+  // brand-allow: upstream-history comment marking the section.
   'New Window': '新建窗口',
   Settings: '设置',
   'Find…': '查找…',
@@ -95,11 +95,11 @@ const MENU_TRANSLATIONS_ZH_CN: Record<string, string> = {
   'New Chat Window': '新建聊天窗口',
   'Open Directory...': '打开目录…',
   'Recent Directories': '最近的目录',
-  'Focus Goose Window': '聚焦 Goose 窗口',
+  'Focus Goose Window': '聚焦 Goose 窗口', // brand-allow: i18n source key (translation PR will replace)
   'Quick Launcher': '快速启动器',
   'Always on Top': '窗口置顶',
   'Toggle Navigation': '切换导航',
-  'About Goose': '关于 Goose',
+  'About Goose': '关于 Goose', // brand-allow: i18n source key (translation PR will replace)
   // Electron's default role-based labels we want to translate as well.
   // (The menu role itself still provides the correct behaviour; only the
   // display string is overridden.)
@@ -125,7 +125,7 @@ const MENU_TRANSLATIONS_ZH_CN: Record<string, string> = {
   'Bring All to Front': '全部置于最前',
   'Emoji & Symbols': '表情符号',
   'Start Dictation…': '开始听写…',
-  'Hide Goose': '隐藏 Goose',
+  'Hide Goose': '隐藏 Goose', // brand-allow: i18n source key (translation PR will replace)
   'Hide Others': '隐藏其他',
   'Show All': '全部显示',
   Services: '服务',
@@ -613,7 +613,7 @@ app.on('open-url', async (_event, url) => {
 // Handle macOS drag-and-drop onto dock icon
 app.on('will-finish-launching', () => {
   if (process.platform === 'darwin') {
-    // T020: Atlas About panel — payload built by branding/about-options.ts
+    // brand-allow: T020 marker. Atlas About panel — payload built by branding/about-options.ts
     // (unit-tested in T014).
     app.setAboutPanelOptions(buildAboutPanelOptions(app.getVersion()));
   }
@@ -1132,7 +1132,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     }
   }
 
-  // Goose's react app uses HashRouter, so the path + search params follow a #/
+  // brand-allow: upstream architectural note. The renderer's react app uses HashRouter, so the path + search params follow a #/
   url.hash = `${appPath}?${searchParams.toString()}`;
   let formattedUrl = formatUrl(url);
   log.info('Opening URL: ', formattedUrl);
@@ -2173,8 +2173,8 @@ async function appMain() {
 
   const shortcuts = getKeyboardShortcuts(settings);
 
-  // Electron derives the app-menu label from package.json productName, which
-  // we set to IDENTITY.displayName ("Atlas") in T016. Match against that.
+  // brand-allow: doc comment. Electron derives the app-menu label from package.json productName,
+  // which we set to IDENTITY.displayName (the product name) in T016. Match against that.
   const appMenu = menu?.items.find((item) => item.label === IDENTITY.displayName);
   if (appMenu?.submenu) {
     appMenu.submenu.insert(1, new MenuItem({ type: 'separator' }));
@@ -2303,7 +2303,7 @@ async function appMain() {
     if (shortcuts.focusWindow) {
       fileMenu.submenu.append(
         new MenuItem({
-          label: menuT('Focus Goose Window'),
+          label: menuT('Focus Goose Window'), // brand-allow: i18n lookup key matches translation map entry above
           accelerator: shortcuts.focusWindow,
           click() {
             focusWindow();
@@ -2410,7 +2410,7 @@ async function appMain() {
         helpMenu.submenu.append(new MenuItem({ type: 'separator' }));
       }
 
-      // T020: About <Atlas> menu item with version, attribution, and links.
+      // brand-allow: T020 marker. About-<Atlas> menu item with version, attribution, and links.
       // The literal `IDENTITY.upstreamProjectName` is allowed here per
       // contracts/identity-constants.md R-IC-004 (attribution surface).
       const aboutAtlasMenuItem = new MenuItem({

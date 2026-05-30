@@ -401,11 +401,11 @@ function createEventProcessor(
 const i18n = defineMessages({
   notificationTitle: {
     id: 'chat.notification.taskComplete.title',
-    defaultMessage: 'Goose finished the task.',
+    defaultMessage: 'Atlas finished the task.', // brand-allow: react-intl defaultMessage
   },
   notificationBody: {
     id: 'chat.notification.taskComplete.body',
-    defaultMessage: 'Click here to bring Goose back into focus.',
+    defaultMessage: 'Click here to bring Atlas back into focus.', // brand-allow: react-intl defaultMessage
   },
 });
 

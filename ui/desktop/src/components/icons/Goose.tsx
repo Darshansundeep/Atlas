@@ -1,4 +1,5 @@
-export function Goose({ className = '' }) {
+// brand-allow: internal component, file kept as Goose.tsx to minimize upstream merge conflicts.
+export function Goose({ className = '' }) { // brand-allow: internal component identifier (renaming would touch all import sites)
   return (
     <svg
       width="24"

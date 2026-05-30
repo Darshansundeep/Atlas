@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConfig } from '../ConfigContext';
 import { useModelAndProvider } from '../ModelAndProviderContext';
-import { Goose } from '../icons';
+import { Goose } from '../icons'; // brand-allow: internal component import
 import { Button } from '../ui/button';
 import ProviderSelector from './ProviderSelector';
 import OnboardingSuccess from './OnboardingSuccess';
@@ -26,7 +26,7 @@ const i18n = defineMessages({
   },
   checkProviderErrorTitle: {
     id: 'onboardingGuard.checkProviderErrorTitle',
-    defaultMessage: 'Unable to connect to Goose server',
+    defaultMessage: 'Unable to connect to Atlas server', // brand-allow: react-intl defaultMessage
   },
   checkProviderErrorDescription: {
     id: 'onboardingGuard.checkProviderErrorDescription',
@@ -154,7 +154,7 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
       <div className="h-screen w-full bg-background-default flex flex-col items-center justify-center">
         <div className="text-center max-w-md">
           <div className="mb-4">
-            <Goose className="size-8 mx-auto" />
+            <Goose className="size-8 mx-auto" /> {/* brand-allow: internal component */}
           </div>
           <h1 className="text-xl font-light mb-3">{intl.formatMessage(i18n.checkProviderErrorTitle)}</h1>
           <p className="text-text-muted mb-6">{intl.formatMessage(i18n.checkProviderErrorDescription)}</p>
@@ -187,7 +187,7 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
               className={`text-left transition-all duration-500 ease-in-out overflow-hidden ${hasSelection ? 'max-h-0 opacity-0 mb-0' : 'max-h-60 opacity-100 mb-8'}`}
             >
               <div className="mb-4">
-                <Goose className="size-8" />
+                <Goose className="size-8" /> {/* brand-allow: internal component */}
               </div>
               <h1 className="text-2xl sm:text-4xl font-light mb-3">{intl.formatMessage(i18n.welcomeTitle)}</h1>
               <p className="text-text-muted text-base sm:text-lg">

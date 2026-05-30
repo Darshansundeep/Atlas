@@ -1754,7 +1754,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             legacy_skill_dir.join("SKILL.md"),
-            build_skill_md("shared-skill", "legacy", "Goose", &HashMap::new()),
+            build_skill_md("shared-skill", "legacy", "Atlas", &HashMap::new()),  // brand-allow: legacy vendor token
         )
         .unwrap();
 

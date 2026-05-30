@@ -12,11 +12,11 @@ const i18n = defineMessages({
   // Shortcut labels
   focusWindowLabel: {
     id: 'keyboardShortcuts.focusWindowLabel',
-    defaultMessage: 'Focus Goose Window',
+    defaultMessage: 'Focus Atlas Window', // brand-allow: react-intl defaultMessage
   },
   focusWindowDescription: {
     id: 'keyboardShortcuts.focusWindowDescription',
-    defaultMessage: 'Bring Goose window to front from anywhere',
+    defaultMessage: 'Bring Atlas window to front from anywhere', // brand-allow: react-intl defaultMessage
   },
   quickLauncherLabel: {
     id: 'keyboardShortcuts.quickLauncherLabel',
@@ -40,7 +40,7 @@ const i18n = defineMessages({
   },
   newChatWindowDescription: {
     id: 'keyboardShortcuts.newChatWindowDescription',
-    defaultMessage: 'Open a new Goose window',
+    defaultMessage: 'Open a new Atlas window', // brand-allow: react-intl defaultMessage
   },
   openDirectoryLabel: {
     id: 'keyboardShortcuts.openDirectoryLabel',
@@ -106,7 +106,7 @@ const i18n = defineMessages({
   },
   categoryGlobalDescription: {
     id: 'keyboardShortcuts.categoryGlobalDescription',
-    defaultMessage: 'These shortcuts work system-wide, even when Goose is not focused',
+    defaultMessage: 'These shortcuts work system-wide, even when Atlas is not focused', // brand-allow: react-intl defaultMessage
   },
   categoryApplication: {
     id: 'keyboardShortcuts.categoryApplication',
@@ -114,7 +114,7 @@ const i18n = defineMessages({
   },
   categoryApplicationDescription: {
     id: 'keyboardShortcuts.categoryApplicationDescription',
-    defaultMessage: 'These shortcuts work when Goose is the active application',
+    defaultMessage: 'These shortcuts work when Atlas is the active application', // brand-allow: react-intl defaultMessage
   },
   categorySearch: {
     id: 'keyboardShortcuts.categorySearch',
@@ -145,7 +145,7 @@ const i18n = defineMessages({
   restartDescription: {
     id: 'keyboardShortcuts.restartDescription',
     defaultMessage:
-      'Changes to application shortcuts (like New Chat, Settings, etc.) require restarting Goose to take effect. Global shortcuts (Focus Window, Quick Launcher) work immediately.',
+      'Changes to application shortcuts (like New Chat, Settings, etc.) require restarting Atlas to take effect. Global shortcuts (Focus Window, Quick Launcher) work immediately.', // brand-allow: react-intl defaultMessage
   },
   dismiss: {
     id: 'keyboardShortcuts.dismiss',

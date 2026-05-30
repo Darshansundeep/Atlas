@@ -1,4 +1,4 @@
-import { Goose, Rain } from './icons/Goose';
+import { Goose, Rain } from './icons/Goose'; // brand-allow: internal component import
 import { cn } from '../utils';
 
 interface GooseLogoProps {
@@ -43,7 +43,7 @@ export default function GooseLogo({
           hover && 'opacity-0 group-hover/with-hover:opacity-100'
         )}
       />
-      <Goose className={cn(currentSize.goose, 'absolute left-0 bottom-0 z-2')} />
+      <Goose className={cn(currentSize.goose, 'absolute left-0 bottom-0 z-2')} /> {/* brand-allow: internal component */}
     </div>
   );
 }

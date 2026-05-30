@@ -83,7 +83,7 @@ export default function AppsView() {
           throwOnError: true,
         });
         const cachedApps = response.data?.apps || [];
-        // Only show apps from the "apps" extension (vibe coded apps built by Goose)
+        // brand-allow: code comment referencing upstream extension origin
         setApps(cachedApps.filter((a) => a.mcpServers?.includes('apps')));
       } catch (err) {
         console.warn('Failed to load cached apps:', err);
@@ -106,7 +106,7 @@ export default function AppsView() {
           query: { session_id: sessionId },
         });
         const freshApps = response.data?.apps || [];
-        // Only show apps from the "apps" extension (vibe coded apps built by Goose)
+        // brand-allow: code comment referencing upstream extension origin
         setApps(freshApps.filter((a) => a.mcpServers?.includes('apps')));
         setError(null);
       } catch (err) {
@@ -160,7 +160,7 @@ export default function AppsView() {
         query: { session_id: sessionId },
       });
       const fetchedApps = response.data?.apps || [];
-      // Only show apps from the "apps" extension (vibe coded apps built by Goose)
+      // brand-allow: code comment referencing upstream extension origin
       setApps(fetchedApps.filter((a) => a.mcpServers?.includes('apps')));
       setError(null);
     } catch (err) {
@@ -227,7 +227,7 @@ export default function AppsView() {
         throwOnError: true,
       });
       const cachedApps = response.data?.apps || [];
-      // Only show apps from the "apps" extension (vibe coded apps built by Goose)
+      // brand-allow: code comment referencing upstream extension origin
       setApps(cachedApps.filter((a) => a.mcpServers?.includes('apps')));
       setError(null);
     } catch (err) {

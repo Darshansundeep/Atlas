@@ -203,7 +203,8 @@ mod tests {
 
     #[test]
     fn test_extract_user_input_with_editor_output() {
-        let content = r#"# Goose Prompt Editor
+        // brand-allow: Atlas literal in test fixture string
+        let content = r#"# Atlas Prompt Editor
 
 # Your prompt:
 This is the hardcoded prompt response
@@ -227,7 +228,8 @@ This is the hardcoded prompt response
 
     #[test]
     fn test_extract_user_input_conversation_history_heading() {
-        let content = r#"# Goose Prompt Editor
+        // brand-allow: Atlas literal in test fixture string
+        let content = r#"# Atlas Prompt Editor
 
 # Your prompt:
 This is the user's input
@@ -303,7 +305,8 @@ This is the user's input
 
     #[test]
     fn test_extract_user_input() {
-        let content = r#"# Goose Prompt Editor
+        // brand-allow: Atlas literal in test fixture string
+        let content = r#"# Atlas Prompt Editor
 
 # Recent conversation for context:
 

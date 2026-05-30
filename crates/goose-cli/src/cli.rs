@@ -546,8 +546,7 @@ enum SessionCommand {
 
         #[arg(
             long = "nostr",
-            // brand-allow: clap attribute (compile-time literal); lockstep with DISPLAY_NAME enforced by identity_constants test.
-            help = "Publish the JSON session export as an encrypted Nostr event and print an Atlas share link"
+            help = "Publish the JSON session export as an encrypted Nostr event and print an Atlas share link" // brand-allow: clap attribute
         )]
         nostr: bool,
 
@@ -728,9 +727,8 @@ enum RecipeCommand {
         params: Vec<String>,
     },
 
-    /// Open a recipe in Atlas Desktop
-    // brand-allow: clap attribute (compile-time literal)
-    #[command(about = "Open a recipe in Atlas Desktop")]
+    /// Open a recipe in Atlas Desktop  // brand-allow
+    #[command(about = "Open a recipe in Atlas Desktop")] // brand-allow: clap attribute
     Open {
         /// Recipe name to get recipe file to open
         #[arg(help = "recipe name or full path to the recipe file")]
@@ -783,8 +781,7 @@ enum Command {
         check: bool,
     },
 
-    // brand-allow: clap attribute (compile-time literal)
-    #[command(about = "Check that your Atlas setup is working")]
+    #[command(about = "Check that your Atlas setup is working")] // brand-allow: clap attribute
     Doctor {},
 
     /// Manage system prompts and behaviors

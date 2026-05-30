@@ -10,7 +10,7 @@ import { defineMessages, useIntl } from '../../../i18n';
 const i18n = defineMessages({
   title: {
     id: 'externalBackendSection.title',
-    defaultMessage: 'Goose Server',
+    defaultMessage: 'Atlas Server', // brand-allow: react-intl defaultMessage
   },
   description: {
     id: 'externalBackendSection.description',
@@ -56,7 +56,7 @@ const i18n = defineMessages({
   restartNote: {
     id: 'externalBackendSection.restartNote',
     defaultMessage:
-      'Changes require restarting Goose to take effect. New chat windows will connect to the external server.',
+      'Changes require restarting Atlas to take effect. New chat windows will connect to the external server.', // brand-allow: react-intl defaultMessage
   },
   urlProtocolError: {
     id: 'externalBackendSection.urlProtocolError',

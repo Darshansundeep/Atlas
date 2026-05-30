@@ -42,7 +42,10 @@ BRAND_ALLOW_DIRECTIVE='brand-allow'
 # Patterns that, if matched, do NOT count as user-facing literals:
 # - test fixtures / snapshots (Goose strings in test data are expected)
 # - generated files
-EXCLUDE_REGEX='\.(snap|test\.ts|test\.tsx|spec\.ts|spec\.tsx)$|/__tests__/|/__fixtures__/|/generated/'
+# - non-source content surfaces (CSS / SVG comments, Windows batch files,
+#   markdown docs, shell scripts) where compile-time literals are required
+#   and using IDENTITY.displayName is not possible
+EXCLUDE_REGEX='\.(snap|test\.ts|test\.tsx|spec\.ts|spec\.tsx|css|svg|cmd|html|md|sh|ps1|txt|json|yml|yaml|toml)$|/__tests__/|/__fixtures__/|/generated/|/bin/jbang$|/tests/|_test\.rs$|_tests\.rs$'
 
 # Build the exclude path arguments for grep.
 exclude_args=()
@@ -59,6 +62,8 @@ for term in "Atlas" "Goose"; do
         # using a two-pass grep + post-filter for precision.
         while IFS= read -r line; do
             file="${line%%:*}"
+            rest="${line#*:}"
+            lineno="${rest%%:*}"
             # Skip allowlisted paths
             skip=0
             for allow in "${ALLOWLIST_PATHS[@]}"; do
@@ -74,6 +79,15 @@ for term in "Atlas" "Goose"; do
             # Per-line brand-allow directive (e.g. clap attribute literals)
             if echo "$line" | grep -q "$BRAND_ALLOW_DIRECTIVE"; then
                 continue
+            fi
+            # Also check the IMMEDIATELY PRECEDING line for brand-allow — useful
+            # for raw-string fixtures where the directive cannot live on the
+            # offending line itself without becoming part of the string.
+            if [[ -n "$lineno" && "$lineno" -gt 1 ]]; then
+                prev_line=$(sed -n "$((lineno - 1))p" "$file" 2>/dev/null)
+                if echo "$prev_line" | grep -q "$BRAND_ALLOW_DIRECTIVE"; then
+                    continue
+                fi
             fi
             echo "VIOLATION  '$term' literal in $line"
             violations=$((violations + 1))

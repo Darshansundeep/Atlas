@@ -14,7 +14,7 @@ const i18n = defineMessages({
   },
   modeDescription: {
     id: 'chatSettings.modeDescription',
-    defaultMessage: 'Configure how Goose interacts with tools and extensions',
+    defaultMessage: 'Configure how Atlas interacts with tools and extensions', // brand-allow: react-intl defaultMessage
   },
   responseStylesTitle: {
     id: 'chatSettings.responseStylesTitle',
@@ -22,7 +22,7 @@ const i18n = defineMessages({
   },
   responseStylesDescription: {
     id: 'chatSettings.responseStylesDescription',
-    defaultMessage: 'Choose how Goose should format and style its responses',
+    defaultMessage: 'Choose how Atlas should format and style its responses', // brand-allow: react-intl defaultMessage
   },
 });
 

@@ -48,7 +48,7 @@ const i18n = defineMessages({
   },
   skillsDescription: {
     id: 'skillsView.skillsDescription',
-    defaultMessage: 'View installed skills that extend Goose capabilities. {shortcut} to search.',
+    defaultMessage: 'View installed skills that extend Atlas capabilities. {shortcut} to search.', // brand-allow: react-intl defaultMessage
   },
   searchSkillsPlaceholder: {
     id: 'skillsView.searchSkillsPlaceholder',

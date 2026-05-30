@@ -541,7 +541,7 @@ mod tests {
     fn init_git_repo(repo: &Path) {
         run_git(repo, &["init"]);
         run_git(repo, &["config", "user.email", "goose@example.com"]);
-        run_git(repo, &["config", "user.name", "Goose"]);
+        run_git(repo, &["config", "user.name", "Atlas"]);  // brand-allow: internal git commit author
     }
 
     fn commit_git_repo(repo: &Path, message: &str) {

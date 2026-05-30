@@ -227,7 +227,7 @@ impl TelegramGateway {
 
     /// Save voice bytes to a temporary file and return the path.
     ///
-    /// Files are stored under `<tmp>/goose_voice/voice_<uuid>.<ext>` so Goose
+    /// Files are stored under `<tmp>/goose_voice/voice_<uuid>.<ext>` so the agent  // brand-allow: filename prefix
     /// can access them via its shell tools.  The extension is derived from the
     /// MIME type when available, falling back to `.ogg` for voice notes.
     ///
@@ -275,7 +275,7 @@ impl TelegramGateway {
         Ok(path)
     }
 
-    /// Build the text prompt that tells Goose about a voice message file.
+    /// Build the text prompt that tells the agent about a voice message file.
     fn voice_prompt(
         path: &std::path::Path,
         duration: Option<i32>,
@@ -385,7 +385,7 @@ impl Gateway for TelegramGateway {
                                 // Determine the text to send to the handler.
                                 // Voice/audio messages are downloaded, saved to
                                 // disk, and converted into a prompt that asks
-                                // Goose to transcribe the file using CLI tools.
+                                // the agent to transcribe the file using CLI tools.
                                 let text = if let Some(voice) = Self::voice_info(&tg_msg) {
                                     // Reject files that exceed the Telegram bot
                                     // download limit.

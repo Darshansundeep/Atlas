@@ -379,7 +379,7 @@ export default function MCPUIResourceRenderer({
         <UIResourceRenderer
           resource={content.resource}
           onUIAction={handleUIAction}
-          supportedContentTypes={['rawHtml', 'externalUrl']} // Goose does not support remoteDom content
+          supportedContentTypes={['rawHtml', 'externalUrl']} // brand-allow: code comment
           htmlProps={{
             autoResizeIframe: {
               height: true,

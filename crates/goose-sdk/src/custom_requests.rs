@@ -224,7 +224,7 @@ pub struct PreferencesReadResponse {
     pub values: Vec<PreferenceValue>,
 }
 
-/// Read Goose default provider and model configuration.
+/// Read default provider and model configuration.  // brand-allow: was 'Read Goose ...'
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, JsonRpcRequest)]
 #[request(method = "_goose/unstable/defaults/read", response = DefaultsReadResponse)]
 #[serde(rename_all = "camelCase")]
@@ -237,7 +237,7 @@ pub struct DefaultsReadResponse {
     pub model_id: Option<String>,
 }
 
-/// Save Goose default provider and model configuration.
+/// Save default provider and model configuration.  // brand-allow: was 'Save Goose ...'
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, JsonRpcRequest)]
 #[request(method = "_goose/unstable/defaults/save", response = DefaultsReadResponse)]
 #[serde(rename_all = "camelCase")]
@@ -279,7 +279,7 @@ pub struct OnboardingImportCandidate {
     pub warnings: Vec<String>,
 }
 
-/// Scan for existing Goose and compatible app data that onboarding can import.
+/// Scan for existing app data that onboarding can import.  // brand-allow: was 'existing Goose ...'
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, JsonRpcRequest)]
 #[request(
     method = "_goose/unstable/onboarding/import/scan",
@@ -730,7 +730,7 @@ pub struct CustomProviderUpsertDto {
     pub preserves_thinking: Option<bool>,
 }
 
-/// Create a custom provider backed by Goose's declarative provider store.
+/// Create a custom provider backed by the agent's declarative provider store.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, JsonRpcRequest)]
 #[request(
     method = "_goose/unstable/providers/custom/create",
@@ -769,7 +769,7 @@ pub struct CustomProviderReadResponse {
     pub status: ProviderConfigStatusDto,
 }
 
-/// Update a custom provider backed by Goose's declarative provider store.
+/// Update a custom provider backed by the agent's declarative provider store.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, JsonRpcRequest)]
 #[request(
     method = "_goose/unstable/providers/custom/update",
@@ -790,7 +790,7 @@ pub struct CustomProviderUpdateResponse {
     pub refresh: RefreshProviderInventoryResponse,
 }
 
-/// Delete a custom provider from Goose's declarative provider store.
+/// Delete a custom provider from the agent's declarative provider store.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, JsonRpcRequest)]
 #[request(
     method = "_goose/unstable/providers/custom/delete",
@@ -836,7 +836,7 @@ impl std::fmt::Display for SourceType {
     }
 }
 
-/// A source discovered by Goose. Filesystem sources use an on-disk path;
+/// A source discovered by the agent. Filesystem sources use an on-disk path;
 /// built-in sources use a stable synthetic path. Sources may be either
 /// `global` (shared across all projects) or project-specific.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1166,7 +1166,7 @@ pub struct ProviderInventoryEntryDto {
     pub description: String,
     /// The default/recommended model for this provider.
     pub default_model: String,
-    /// Whether Goose has enough configuration to use this provider.
+    /// Whether the app has enough configuration to use this provider.
     pub configured: bool,
     /// Provider classification such as `Preferred`, `Builtin`, `Declarative`, or `Custom`.
     pub provider_type: String,

@@ -40,7 +40,7 @@ import Settings from './Settings';
 import Time from './Time';
 import { Gear } from './Gear';
 import Youtube from './Youtube';
-import { Goose } from './Goose';
+import { Goose } from './Goose'; // brand-allow: internal component re-export
 import Anthropic from './Anthropic';
 import { ArrowRight } from './ArrowRight';
 import { Key } from './Key';
@@ -106,7 +106,7 @@ export {
   Watch5,
   Watch6,
   Youtube,
-  Goose,
+  Goose, // brand-allow: internal component re-export
   Anthropic,
   ArrowRight,
   Key,

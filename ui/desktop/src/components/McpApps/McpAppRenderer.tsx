@@ -12,7 +12,7 @@
  *
  * Display modes:
  * - "inline" | "fullscreen" | "pip" — standard MCP display modes
- * - "standalone" — Goose-specific mode for dedicated Electron windows
+ * - "standalone" — Goose-specific mode for dedicated Electron windows  // brand-allow: doc comment
  */
 
 import { AppRenderer, type RequestHandlerExtra } from '@mcp-ui/client';

@@ -19,7 +19,7 @@
 //! }
 //! ```
 //!
-//! Goose currently supports `type: "command"` actions. Unknown event names and
+//! The hook system currently supports `type: "command"` actions. Unknown event names and
 //! action types are ignored per the spec. Hook scripts receive the JSON event
 //! context on stdin and SHOULD exit 0 on success.
 

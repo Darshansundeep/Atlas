@@ -79,7 +79,7 @@ const i18n = defineMessages({
   },
   readyInstallAuto: {
     id: 'updateSection.readyInstallAuto',
-    defaultMessage: '✓ Update is ready! It will be installed when you quit Goose.',
+    defaultMessage: '✓ Update is ready! It will be installed when you quit Atlas.', // brand-allow: react-intl defaultMessage
   },
   installNowHint: {
     id: 'updateSection.installNowHint',

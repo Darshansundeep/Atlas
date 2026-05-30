@@ -41,7 +41,7 @@ fn is_meta_provider(provider: &str) -> bool {
 
 pub fn map_provider_name(provider: &str) -> &str {
     match provider {
-        // Goose provider names that differ from models.dev names
+        // Provider names that differ from models.dev names. // brand-allow: was 'Goose provider names'
         "xai" => "x-ai",
         "azure_openai" => "azure",
         "aws_bedrock" => "amazon-bedrock",

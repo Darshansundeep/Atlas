@@ -7,7 +7,7 @@ use rmcp::model::{
     ExtensionCapabilities, Extensions, JsonObject, ListRootsResult, LoggingMessageNotification,
     Meta, Root, SamplingMessageContent,
 };
-/// MCP client implementation for Goose
+/// MCP client implementation for the agent
 use rmcp::{
     model::{
         CallToolRequestParams, CallToolResult, CancelledNotificationParam, ClientCapabilities,
@@ -941,7 +941,7 @@ mod tests {
         let mut extensions = Extensions::new();
         extensions.insert(
             serde_json::from_value::<Meta>(json!({
-                "Goose-Session-Id": "old-session-id",
+                "Goose-Session-Id": "old-session-id", // brand-allow: upstream HTTP header contract
                 "other-key": "preserve-me"
             }))
             .unwrap(),
