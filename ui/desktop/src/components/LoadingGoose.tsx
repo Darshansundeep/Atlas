@@ -16,23 +16,23 @@ const i18n = defineMessages({
   },
   thinking: {
     id: 'loadingGoose.thinking',
-    defaultMessage: 'goose is thinking…',
+    defaultMessage: 'Atlas is thinking…', // brand-allow: react-intl defaultMessage
   },
   streaming: {
     id: 'loadingGoose.streaming',
-    defaultMessage: 'goose is working on it…',
+    defaultMessage: 'Atlas is working on it…', // brand-allow: react-intl defaultMessage
   },
   waiting: {
     id: 'loadingGoose.waiting',
-    defaultMessage: 'goose is waiting…',
+    defaultMessage: 'Atlas is waiting…', // brand-allow: react-intl defaultMessage
   },
   compacting: {
     id: 'loadingGoose.compacting',
-    defaultMessage: 'goose is compacting the conversation...',
+    defaultMessage: 'Atlas is compacting the conversation...', // brand-allow
   },
   idle: {
     id: 'loadingGoose.idle',
-    defaultMessage: 'goose is working on it…',
+    defaultMessage: 'Atlas is working on it…', // brand-allow: react-intl defaultMessage
   },
   restartingAgent: {
     id: 'loadingGoose.restartingAgent',

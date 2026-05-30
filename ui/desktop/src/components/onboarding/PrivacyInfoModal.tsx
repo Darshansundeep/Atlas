@@ -8,7 +8,7 @@ const i18n = defineMessages({
   },
   description: {
     id: 'privacyInfoModal.description',
-    defaultMessage: 'Anonymous usage data helps us understand how goose is used and identify areas for improvement.',
+    defaultMessage: 'Anonymous usage data helps us understand how Atlas is used and identify areas for improvement.', // brand-allow: react-intl defaultMessage
   },
   whatWeCollect: {
     id: 'privacyInfoModal.whatWeCollect',
