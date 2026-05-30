@@ -20,6 +20,10 @@ name = "generate_manpages"
 path = "src/bin/generate_manpages.rs"
 
 [dependencies]
+# Atlas identity source-of-truth (T024a). Provides the constants used in
+# every user-facing string the CLI emits. Keeping this dep at the top of the
+# list so future upstream merges can spot it.
+atlas-branding = { path = "../atlas-branding" }
 clap_mangen = { version = "0.2", default-features = false }
 goose = { path = "../goose", default-features = false }
 goose-mcp = { path = "../goose-mcp", default-features = false }

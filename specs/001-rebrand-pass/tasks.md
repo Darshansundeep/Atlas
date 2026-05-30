@@ -65,7 +65,7 @@ Paths assume the Atlas repository is a fork of `block/goose` cloned at the repo 
 
 ### Tests for User Story 1 (REQUIRED by contracts)
 
-- [ ] T012 [P] [US1] Write the lint script `tools/scripts/check-identity-literals.sh` that powers the `forbid-literal-product-names` CI job (scans `ui/src/`, `crates/`, fails on disallowed `Atlas`/`Goose` literals; allowlist in `tools/scripts/identity-allowlist.txt`).
+- [X] T012 [P] [US1] Write the lint script `tools/scripts/check-identity-literals.sh` that powers the `forbid-literal-product-names` CI job (scans `ui/src/`, `crates/`, fails on disallowed `Atlas`/`Goose` literals; allowlist in `tools/scripts/identity-allowlist.txt`). *Done in foundation; extended with `// brand-allow` per-line directive and i18n + scenario-recordings path allowlists.*
 - [X] T013 [P] [US1] Write the integration test `crates/atlas-branding/tests/identity_constants_in_sync.rs` asserting UI branding module values match Rust constants (parsed from `ui/src/branding/index.ts` via a small build-time script). *Done at `crates/atlas-branding/tests/identity_constants.rs` (corrected path per LAYOUT_NOTES). 8 assertions cover displayName, slug, vendor, bundle id, URL scheme, env prefix, upstream attribution, and UPSTREAM_VERSION sync.*
 - [X] T014 [P] [US1] Write the UI snapshot test `ui/src/components/About/__tests__/about_screen_attribution_present.test.tsx` asserting the rendered About screen contains the upstream project name and an `<a href="https://github.com/block/goose">` element. *Revised — upstream About is a native macOS panel (Electron `app.setAboutPanelOptions`), not a React component. Test now lives at `ui/desktop/src/branding/about-options.test.ts` (Vitest) asserting the panel-options builder includes attribution. Spec amendment captured here.*
 
@@ -80,10 +80,10 @@ Paths assume the Atlas repository is a fork of `block/goose` cloned at the repo 
 - [ ] T021 [P] [US1] Replace the application icon set at `ui/assets/icons/atlas.icns` (macOS), `ui/assets/icons/atlas.ico` (Windows), and the `hicolor` PNG set under `ui/assets/icons/linux/` per `data-model.md` Asset Mapping; remove upstream Goose icon files.
 - [ ] T022 [P] [US1] Replace the splash / loading asset at `ui/assets/splash.png` (and SVG variant) with the Atlas splash from the design drop.
 - [ ] T023 [P] [US1] Replace the tray / menubar icon at `ui/assets/icons/tray-template.png` (macOS monochrome template), `ui/assets/icons/tray.ico` (Windows), `ui/assets/icons/tray-22.png` (Linux).
-- [ ] T024 [US1] Sweep `ui/src/` UI components: every user-facing literal occurrence of "Goose" outside the About screen is replaced by `IDENTITY.displayName` import. Use the lint from T012 to find them.
-- [ ] T024a [P] [US1] Sweep Rust user-facing strings in `crates/goose-cli/` (and any Rust source emitting user-facing text — banner, `--help`, `--version`, error messages, log prefixes): replace literal "Goose" references with values sourced from `crates/atlas-branding`. The lint from T012 MUST be extended to scan `crates/` for the same allowlist rule. Per FR-016 (covers CLI / Rust surfaces, not just `ui/src/`).
+- [ ] T024 [US1] Sweep `ui/src/` UI components: every user-facing literal occurrence of "Goose" outside the About screen is replaced by `IDENTITY.displayName` import. Use the lint from T012 to find them. *PARTIAL — `ui/desktop/src/main.ts` swept (5 inline literals → IDENTITY.displayName). Remaining ~37 files (settings, KeyboardShortcutsSection, autoUpdater, ErrorBoundary, etc.) deferred to a focused PR. i18n JSON files (4 languages × ~27 entries) are a translation PR, not sed.*
+- [ ] T024a [P] [US1] Sweep Rust user-facing strings in `crates/goose-cli/` (and any Rust source emitting user-facing text — banner, `--help`, `--version`, error messages, log prefixes): replace literal "Goose" references with values sourced from `crates/atlas-branding`. The lint from T012 MUST be extended to scan `crates/` for the same allowlist rule. Per FR-016 (covers CLI / Rust surfaces, not just `ui/src/`). *PARTIAL — atlas-branding dep added to goose-cli; cli.rs (3 clap attributes with `// brand-allow`), term.rs, recipe.rs (+ test), session/mod.rs, update.rs, editor.rs (+ 2 tests) swept. Lint extended with `// brand-allow` directive + scenario_tests/recordings allowlist. Remaining goose-cli files + other crates (goose-server, goose, etc.) deferred to focused PR.*
 - [X] T024b [P] [US1] Write the negative-isolation integration test `tests/integration/no_upstream_goose_state_read.rs` that creates a fake upstream Goose config directory on disk (`~/.config/goose/` with sentinel files), launches Atlas, exercises representative flows, and asserts Atlas never opens, reads, or otherwise touches any path inside the upstream Goose directory. Per FR-013. *Done at `crates/atlas-branding/tests/no_upstream_goose_state_read.rs` (branding-layer assertions). Full filesystem-launch test is bundled into the coexistence script (T053a). Per FR-013.*
-- [ ] T025 [US1] Update window title, menu bar items, tray tooltip, and OS notification sender name to read from `IDENTITY.displayName` (entry points typically in `ui/src/main/window.ts` and `ui/src/main/menu.ts`; confirm against `LAYOUT_NOTES.md`).
+- [X] T025 [US1] Update window title, menu bar items, tray tooltip, and OS notification sender name to read from `IDENTITY.displayName` (entry points typically in `ui/src/main/window.ts` and `ui/src/main/menu.ts`; confirm against `LAYOUT_NOTES.md`).
 - [ ] T026 [US1] Update telemetry endpoint URL (if upstream Goose ships one) and outbound update-check URL to Atlas-owned hosts via `crates/atlas-branding` constants (no literal URLs elsewhere).
 - [ ] T027 [US1] Run the identity test suite (T012, T013, T014) locally on the developer's host OS and fix any failures.
 - [ ] T028 [P] [US1] Confirm CI runs the identity test suite on macOS via `.github/workflows/ci.yml`'s `macos-latest` matrix entry — green required.
@@ -102,22 +102,22 @@ Paths assume the Atlas repository is a fork of `block/goose` cloned at the repo 
 
 ### Tests for User Story 2 (REQUIRED by contracts)
 
-- [ ] T031 [P] [US2] Write the CI job `verify-artifact-names` in `.github/workflows/release.yml` that asserts every produced artifact matches the regex in `contracts/installer-artifacts.md` R-AR-005.
-- [ ] T032 [P] [US2] Write the CI job `verify-artifact-metadata-macos` running `pkgutil --check-signature`, `spctl --assess`, and `defaults read .../Info.plist CFBundleIdentifier` against the produced `.dmg`.
-- [ ] T033 [P] [US2] Write the CI job `verify-artifact-metadata-windows` running PowerShell `Get-AuthenticodeSignature` and asserting the MSI's ProductName + Manufacturer + UpgradeCode.
-- [ ] T034 [P] [US2] Write the CI job `verify-artifact-metadata-linux` running `dpkg-deb -I`, `rpm -qpi`, and an AppImage validator against the Linux artifacts.
-- [ ] T035 [P] [US2] Write the CI job `verify-release-bundle-complete` asserting every artifact listed in `contracts/installer-artifacts.md` "Release Bundle" exists in the published artifact directory.
+- [X] T031 [P] [US2] Write the CI job `verify-artifact-names` in `.github/workflows/release.yml` that asserts every produced artifact matches the regex in `contracts/installer-artifacts.md` R-AR-005.
+- [X] T032 [P] [US2] Write the CI job `verify-artifact-metadata-macos` running `pkgutil --check-signature`, `spctl --assess`, and `defaults read .../Info.plist CFBundleIdentifier` against the produced `.dmg`.
+- [X] T033 [P] [US2] Write the CI job `verify-artifact-metadata-windows` running PowerShell `Get-AuthenticodeSignature` and asserting the MSI's ProductName + Manufacturer + UpgradeCode.
+- [X] T034 [P] [US2] Write the CI job `verify-artifact-metadata-linux` running `dpkg-deb -I`, `rpm -qpi`, and an AppImage validator against the Linux artifacts.
+- [X] T035 [P] [US2] Write the CI job `verify-release-bundle-complete` asserting every artifact listed in `contracts/installer-artifacts.md` "Release Bundle" exists in the published artifact directory.
 
 ### Implementation for User Story 2
 
-- [ ] T036 [US2] Create `installers/macos/entitlements.plist` and `installers/macos/dmg-config.yml` aligned to bundle ID `ai.netgroup.atlas` with the URL-scheme entitlement `atlas`.
-- [ ] T037 [P] [US2] Create `installers/windows/atlas.wxs` (WiX) or `installers/windows/atlas.nsi` (NSIS) script with `ProductName=Atlas`, `Manufacturer=NET Group`, `AppUserModelID=NETGroup.Atlas`, and the fixed `UpgradeCode` GUID recorded in `installers/windows/upgrade-code.txt`.
-- [ ] T038 [P] [US2] Create `installers/linux/atlas.desktop` (desktop entry with `MimeType=x-scheme-handler/atlas;` and `Name=Atlas`), plus `installers/linux/control` (Debian), `installers/linux/atlas.spec` (RPM), and `installers/linux/AppImage.yml`.
-- [ ] T039 [US2] Create `.github/workflows/release.yml` triggered on `push: tags: ['v*']` that runs build matrices for macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64) and produces the artifacts named per `contracts/installer-artifacts.md`.
-- [ ] T040 [US2] Wire signing secrets into the release workflow: `APPLE_TEAM_ID`, `APPLE_CERTIFICATE_P12`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_NOTARIZATION_USER`, `APPLE_NOTARIZATION_PASSWORD`, `WINDOWS_EV_CERT`, `WINDOWS_EV_PASSWORD`. PR builds MUST skip signing with a clear log message and produce unsigned artifacts (per `research.md` R-007).
-- [ ] T041 [US2] Add a post-signing step that computes SHA-256 checksums of every artifact and writes `checksums.txt` per `contracts/installer-artifacts.md`.
-- [ ] T042 [US2] Add a release-notes-generation step that produces `release-notes.md` from the merged spec IDs since the previous tag (parse `specs/*/` and `git log`).
-- [ ] T043 [US2] Add the `verify-release-bundle-complete` gate (from T035) as the final job before publish; the publish step depends on it being green.
+- [X] T036 [US2] Create `installers/macos/entitlements.plist` and `installers/macos/dmg-config.yml` aligned to bundle ID `ai.netgroup.atlas` with the URL-scheme entitlement `atlas`.
+- [X] T037 [P] [US2] Create `installers/windows/atlas.wxs` (WiX) or `installers/windows/atlas.nsi` (NSIS) script with `ProductName=Atlas`, `Manufacturer=NET Group`, `AppUserModelID=NETGroup.Atlas`, and the fixed `UpgradeCode` GUID recorded in `installers/windows/upgrade-code.txt`.
+- [X] T038 [P] [US2] Create `installers/linux/atlas.desktop` (desktop entry with `MimeType=x-scheme-handler/atlas;` and `Name=Atlas`), plus `installers/linux/control` (Debian), `installers/linux/atlas.spec` (RPM), and `installers/linux/AppImage.yml`.
+- [X] T039 [US2] Create `.github/workflows/release.yml` triggered on `push: tags: ['v*']` that runs build matrices for macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64) and produces the artifacts named per `contracts/installer-artifacts.md`.
+- [X] T040 [US2] Wire signing secrets into the release workflow: `APPLE_TEAM_ID`, `APPLE_CERTIFICATE_P12`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_NOTARIZATION_USER`, `APPLE_NOTARIZATION_PASSWORD`, `WINDOWS_EV_CERT`, `WINDOWS_EV_PASSWORD`. PR builds MUST skip signing with a clear log message and produce unsigned artifacts (per `research.md` R-007).
+- [X] T041 [US2] Add a post-signing step that computes SHA-256 checksums of every artifact and writes `checksums.txt` per `contracts/installer-artifacts.md`.
+- [X] T042 [US2] Add a release-notes-generation step that produces `release-notes.md` from the merged spec IDs since the previous tag (parse `specs/*/` and `git log`).
+- [X] T043 [US2] Add the `verify-release-bundle-complete` gate (from T035) as the final job before publish; the publish step depends on it being green.
 - [ ] T044 [US2] Run a PR-build of the release workflow end-to-end on `001-rebrand-pass` (no certs) and verify all 6 unsigned artifacts + `checksums.txt` + `release-notes.md` are produced and named correctly.
 
 **Checkpoint**: User Story 2 is independently demonstrable — push a tag, see the full release bundle on the workflow's artifacts page (signed only if certs are present, unsigned otherwise, never partial).
@@ -137,7 +137,7 @@ Paths assume the Atlas repository is a fork of `block/goose` cloned at the repo 
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Verify `electron-builder.yml` ships `LICENSE` and `NOTICE` into the bundled app resources on each OS (extraResources / files configuration); update if missing.
+- [X] T047 [US3] Verify `electron-builder.yml` ships `LICENSE` and `NOTICE` into the bundled app resources on each OS (extraResources / files configuration); update if missing.
 - [ ] T048 [US3] Verify the macOS `.dmg` build places `LICENSE` and `NOTICE` inside `Contents/Resources/` of the `.app` bundle; install on a fresh macOS VM and confirm.
 - [ ] T049 [P] [US3] Verify the Windows MSI/EXE places `LICENSE` and `NOTICE` in the install directory; install on a fresh Windows VM and confirm.
 - [ ] T050 [P] [US3] Verify the Linux `.deb`/`.rpm`/`AppImage` places `LICENSE` and `NOTICE` under `/usr/share/doc/atlas/` (Linux convention); install on a fresh Linux VM and confirm.

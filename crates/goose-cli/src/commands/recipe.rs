@@ -1,4 +1,5 @@
 use anyhow::Result;
+use atlas_branding::DISPLAY_NAME;
 use console::style;
 use goose::recipe::validate_recipe::validate_recipe_template_from_file;
 use std::collections::HashMap;
@@ -69,21 +70,23 @@ where
             Ok(_) => {
                 writeln!(
                     out,
-                    "{} Opened recipe '{}' in Goose Desktop",
+                    "{} Opened recipe '{}' in {} Desktop",
                     style("✓").green().bold(),
-                    recipe.title
+                    recipe.title,
+                    DISPLAY_NAME
                 )?;
                 Ok(())
             }
             Err(err) => {
                 writeln!(
                     out,
-                    "{} Failed to open recipe in Goose Desktop: {}",
+                    "{} Failed to open recipe in {} Desktop: {}",
                     style("✗").red().bold(),
+                    DISPLAY_NAME,
                     err
                 )?;
                 writeln!(out, "Generated deeplink: {}", deeplink_url)?;
-                writeln!(out, "You can manually copy and open the URL above, or ensure Goose Desktop is installed.")?;
+                writeln!(out, "You can manually copy and open the URL above, or ensure {} Desktop is installed.", DISPLAY_NAME)?;
                 Err(anyhow::anyhow!("Failed to open recipe: {}", err))
             }
         },
@@ -327,7 +330,7 @@ instructions: "Test instructions"
         let (result, _, output) = run_handle_open(&recipe_path, &[], Err(opener_err));
 
         assert!(result.is_err());
-        assert!(output.contains("Failed to open recipe in Goose Desktop"));
+        assert!(output.contains(&format!("Failed to open recipe in {} Desktop", DISPLAY_NAME)));
         assert!(output.contains("desktop not found"));
         assert!(output.contains(&expected_url));
     }

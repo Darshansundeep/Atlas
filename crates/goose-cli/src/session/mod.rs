@@ -30,6 +30,7 @@ use goose::providers::base::Provider;
 use goose::utils::safe_truncate;
 
 use anyhow::{Context, Result};
+use atlas_branding::DISPLAY_NAME;
 use completion::GooseCompleter;
 use goose::agents::extension::{Envs, ExtensionConfig, PLATFORM_EXTENSIONS};
 use goose::agents::types::RetryConfig;
@@ -791,7 +792,7 @@ impl CliSession {
         };
         self.agent.update_goose_mode(mode, &self.session_id).await?;
         config.set_goose_mode(mode)?;
-        output::goose_mode_message(&format!("Goose mode set to '{mode}'"));
+        output::goose_mode_message(&format!("{} mode set to '{mode}'", DISPLAY_NAME));
         Ok(())
     }
 
@@ -1683,7 +1684,7 @@ fn prompt_tool_confirmation(security_prompt: &Option<String>) -> Result<Permissi
         println!("\n{}", security_message);
         "Do you allow this tool call?".to_string()
     } else {
-        "Goose would like to call the above tool, do you allow?".to_string()
+        format!("{} would like to call the above tool, do you allow?", DISPLAY_NAME)
     };
 
     let permission_result = if security_prompt.is_none() {

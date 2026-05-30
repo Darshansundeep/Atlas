@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use atlas_branding::DISPLAY_NAME;
 use sha2::{Digest, Sha256};
 use sigstore_verify::trust_root::{TrustedRoot, SIGSTORE_PRODUCTION_TRUSTED_ROOT};
 use sigstore_verify::types::{Bundle, Sha256Hash};
@@ -460,8 +461,9 @@ fn replace_binary(new_binary: &Path, current_exe: &Path) -> Result<()> {
         // Rename the running binary out of the way
         fs::rename(current_exe, &old_exe).with_context(|| {
             format!(
-                "Failed to rename running binary to {}. Try closing Goose Desktop if it's open.",
-                old_exe.display()
+                "Failed to rename running binary to {}. Try closing {} Desktop if it's open.",
+                old_exe.display(),
+                DISPLAY_NAME
             )
         })?;
 

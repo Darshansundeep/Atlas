@@ -12,7 +12,9 @@ let cfg = {
   name: 'Atlas',
   appBundleId: 'ai.netgroup.atlas',
   appCategoryType: 'public.app-category.developer-tools',
-  extraResource: ['src/bin', 'src/images'],
+  // T047: ship LICENSE + NOTICE-ATLAS in the bundle so compliance reviewers
+  // can locate them inside the installed app. Per spec FR-008 / SC-004.
+  extraResource: ['src/bin', 'src/images', '../../LICENSE', '../../NOTICE-ATLAS'],
   icon: 'src/images/icon',
   // Windows specific configuration
   win32: {

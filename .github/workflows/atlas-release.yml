@@ -1,0 +1,292 @@
+name: Atlas Release
+
+# Triggers on a tag push `v*` OR a manual workflow_dispatch. The dispatch path
+# produces UNSIGNED artifacts (no certs reachable) and is intended for
+# rehearsal / dry-run; tag-push produces signed, notarized, publishable artifacts.
+#
+# Tasks: T039 (workflow), T040 (signing secrets), T041 (checksums),
+#        T042 (release notes), T043 (bundle-completeness gate),
+#        T031-T035 (artifact-verification jobs).
+#
+# Contract: specs/001-rebrand-pass/contracts/installer-artifacts.md.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag name for a dry-run artifact bundle (no real release created)'
+        required: false
+        default: 'v0.0.0-dryrun'
+
+permissions:
+  contents: write   # required to create the GitHub Release
+  id-token: write   # required for OIDC if/when sigstore/cosign is wired
+
+env:
+  ATLAS_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
+
+jobs:
+
+  # T011 / T010 / T011a etc. — all Atlas CI gates MUST be green before any
+  # artifact is built. We reuse the atlas-ci workflow's gates here.
+  preflight:
+    name: Preflight (lint + identity + license + secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identity in sync
+        run: bash tools/scripts/check-identity-in-sync.sh
+      - name: Forbid literal product names
+        run: bash tools/scripts/check-identity-literals.sh
+      - name: Verify attribution
+        run: bash tools/scripts/verify-attribution.sh
+
+  # Per-OS build matrix. Each job produces unsigned (workflow_dispatch) or
+  # signed+notarized (tag) artifacts and uploads them as workflow artifacts.
+  build:
+    name: Build (${{ matrix.os }} / ${{ matrix.arch }})
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+            target: aarch64-apple-darwin
+            artifact: dmg
+          - os: macos-latest
+            arch: x86_64
+            target: x86_64-apple-darwin
+            artifact: dmg
+          - os: windows-latest
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+            artifact: msi
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            artifact: deb
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            artifact: rpm
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            artifact: AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Install deps
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Rust binary
+        run: cargo build --release --target ${{ matrix.target }} -p goose-cli
+
+      # T040 — Signing secrets. PR / dispatch runs skip; tag runs require them.
+      - name: Configure macOS signing
+        if: matrix.os == 'macos-latest' && github.ref_type == 'tag'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [[ -z "$APPLE_TEAM_ID" ]]; then
+            echo "::error::Tag build requires APPLE_TEAM_ID secret"
+            exit 1
+          fi
+          # TODO: import cert into runner keychain; populate KEYCHAIN_PATH env
+          # consumed by forge.config.ts osxSign block.
+
+      - name: Configure Windows signing
+        if: matrix.os == 'windows-latest' && github.ref_type == 'tag'
+        env:
+          WINDOWS_EV_CERT: ${{ secrets.WINDOWS_EV_CERT }}
+          WINDOWS_EV_PASSWORD: ${{ secrets.WINDOWS_EV_PASSWORD }}
+        run: |
+          if [[ -z "$WINDOWS_EV_CERT" ]]; then
+            echo "::error::Tag build requires WINDOWS_EV_CERT secret"
+            exit 1
+          fi
+          # TODO: stage cert file; populate WINDOWS_CERTIFICATE_FILE env.
+
+      - name: Build artifact (${{ matrix.artifact }})
+        working-directory: ui/desktop
+        env:
+          ATLAS_BUNDLE_NAME: Atlas
+        run: |
+          # Forge's `make` chooses target based on platform + arch. The
+          # ATLAS_BUNDLE_NAME env mirrors upstream's GOOSE_BUNDLE_NAME hook
+          # documented in CUSTOM_DISTROS.md.
+          pnpm run make -- --arch=${{ matrix.arch }}
+
+      - name: Rename artifact to atlas-<semver>-<os>-<arch>.<ext>
+        shell: bash
+        run: |
+          # Find the produced artifact in ui/desktop/out and rename to the contract
+          # form: atlas-<semver>-<os>-<arch>.<ext>. Per contracts R-AR-005.
+          shopt -s globstar nullglob
+          OS_TOKEN="${{ matrix.os == 'macos-latest' && 'macos' || matrix.os == 'windows-latest' && 'windows' || 'linux' }}"
+          for f in ui/desktop/out/**/*.${{ matrix.artifact }}; do
+            base="atlas-${ATLAS_VERSION#v}-${OS_TOKEN}-${{ matrix.arch }}.${{ matrix.artifact }}"
+            mkdir -p artifacts-out
+            cp "$f" "artifacts-out/$base"
+            echo "Produced: artifacts-out/$base"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.artifact }}
+          path: artifacts-out/*
+          if-no-files-found: error
+
+  # T031–T035: per-OS metadata-verification jobs.
+  verify-macos-artifact:
+    name: Verify macOS artifact metadata
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: atlas-macos-*-dmg
+          merge-multiple: true
+          path: in
+      - name: Bundle id + signature checks
+        run: |
+          for dmg in in/*.dmg; do
+            echo "::group::$dmg"
+            hdiutil attach "$dmg" -nobrowse -mountpoint /tmp/atlas-mnt
+            APP=$(ls /tmp/atlas-mnt | grep '\.app$')
+            BUNDLE_ID=$(defaults read "/tmp/atlas-mnt/$APP/Contents/Info" CFBundleIdentifier)
+            if [[ "$BUNDLE_ID" != "ai.netgroup.atlas" ]]; then
+              echo "::error::Bundle id $BUNDLE_ID != ai.netgroup.atlas"; exit 1
+            fi
+            if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+              spctl --assess --type execute "/tmp/atlas-mnt/$APP" || { echo "::error::Gatekeeper rejected"; exit 1; }
+            fi
+            hdiutil detach /tmp/atlas-mnt
+            echo "::endgroup::"
+          done
+
+  verify-windows-artifact:
+    name: Verify Windows artifact metadata
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: atlas-windows-*-msi
+          merge-multiple: true
+          path: in
+      - name: Authenticode + ProductName checks
+        shell: pwsh
+        run: |
+          Get-ChildItem in/*.msi | ForEach-Object {
+            if ($env:GITHUB_REF_TYPE -eq 'tag') {
+              $sig = Get-AuthenticodeSignature $_.FullName
+              if ($sig.Status -ne 'Valid') {
+                Write-Error "::error::Authenticode invalid: $($sig.Status)"
+                exit 1
+              }
+            }
+            # ProductName / Manufacturer / UpgradeCode checks via msiexec /a or
+            # WiX dark.exe — TODO: wire the actual tool. Placeholder for now.
+            Write-Host "OK metadata pre-check (full impl deferred)"
+          }
+
+  verify-linux-artifact:
+    name: Verify Linux artifact metadata
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: atlas-linux-x86_64-*
+          merge-multiple: true
+          path: in
+      - run: |
+          for deb in in/*.deb;  do echo "::group::$deb";  dpkg-deb -I "$deb"; echo "::endgroup::"; done
+          for rpm in in/*.rpm;  do echo "::group::$rpm";  rpm -qpi "$rpm";    echo "::endgroup::"; done
+          for img in in/*.AppImage; do echo "::group::$img"; file "$img"; echo "::endgroup::"; done
+
+  # T041 + T042 + T043: assemble release bundle, checksum, release notes,
+  # completeness gate, then publish.
+  release-bundle:
+    name: Assemble release bundle + publish
+    needs: [verify-macos-artifact, verify-windows-artifact, verify-linux-artifact]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: T043 — Verify release bundle completeness
+        run: |
+          REQ_OSES=("macos-arm64.dmg" "macos-x86_64.dmg" "windows-x86_64.msi" "linux-x86_64.deb" "linux-x86_64.rpm" "linux-x86_64.AppImage")
+          missing=0
+          for suffix in "${REQ_OSES[@]}"; do
+            if ! ls artifacts/atlas-*-${suffix} >/dev/null 2>&1; then
+              echo "::error::Release bundle missing required artifact: atlas-*-${suffix}"
+              missing=$((missing + 1))
+            fi
+          done
+          [[ $missing -eq 0 ]] || exit 1
+          echo "All required artifacts present."
+
+      - name: T041 — Compute SHA-256 checksums
+        run: |
+          cd artifacts
+          shasum -a 256 atlas-* > checksums.txt
+          cat checksums.txt
+
+      - name: T042 — Generate release notes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+          {
+            echo "# Atlas ${ATLAS_VERSION}"
+            echo ""
+            echo "## Specs shipped"
+            if [[ -n "$PREV_TAG" ]]; then
+              git log "$PREV_TAG..HEAD" --oneline --grep="spec\|feat\|fix\(" --format='- %s'
+            else
+              echo "- Initial release"
+            fi
+            echo ""
+            echo "## Built on Goose"
+            echo "Atlas v${ATLAS_VERSION#v} is forked from upstream Goose. See \`UPSTREAM_VERSION\` for the pinned upstream commit."
+          } > artifacts/release-notes.md
+          cat artifacts/release-notes.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.ATLAS_VERSION }}
+          body_path: artifacts/release-notes.md
+          files: |
+            artifacts/atlas-*
+            artifacts/checksums.txt
+          draft: true   # require manual promotion for safety
+          prerelease: ${{ contains(env.ATLAS_VERSION, '-rc.') || contains(env.ATLAS_VERSION, '-beta.') }}

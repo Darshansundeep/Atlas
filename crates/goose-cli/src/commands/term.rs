@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use atlas_branding::DISPLAY_NAME;
 use chrono;
 use goose::config::Config;
 use goose::conversation::message::{Message, MessageContent, MessageMetadata};
@@ -198,7 +199,7 @@ pub async fn handle_term_init(
             let session = session_manager
                 .create_session(
                     working_dir,
-                    "Goose Term Session".to_string(),
+                    format!("{} Term Session", DISPLAY_NAME),
                     SessionType::Terminal,
                     Config::global().get_goose_mode().unwrap_or_default(),
                 )

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Atlas macOS entitlements (T036).
+  Minimal set: only what's needed for hardened runtime + URL scheme + JIT (Electron).
+  Add new entitlements only with a justification in the PR description.
+  Contract: contracts/installer-artifacts.md §macOS.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Required by Electron's hardened runtime for V8 / V8 Lite. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+  <!-- Atlas binds to localhost for goosed REST API. -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.network.server</key>
+  <true/>
+  <!-- File access needed for opening user-selected docs (drag-and-drop). -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <!-- Calendars / Reminders integration (declared in forge.config.ts usage descriptions). -->
+  <key>com.apple.security.personal-information.calendars</key>
+  <true/>
+</dict>
+</plist>

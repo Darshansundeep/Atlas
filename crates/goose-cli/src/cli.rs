@@ -546,7 +546,8 @@ enum SessionCommand {
 
         #[arg(
             long = "nostr",
-            help = "Publish the JSON session export as an encrypted Nostr event and print a Goose share link"
+            // brand-allow: clap attribute (compile-time literal); lockstep with DISPLAY_NAME enforced by identity_constants test.
+            help = "Publish the JSON session export as an encrypted Nostr event and print an Atlas share link"
         )]
         nostr: bool,
 
@@ -727,8 +728,9 @@ enum RecipeCommand {
         params: Vec<String>,
     },
 
-    /// Open a recipe in Goose Desktop
-    #[command(about = "Open a recipe in Goose Desktop")]
+    /// Open a recipe in Atlas Desktop
+    // brand-allow: clap attribute (compile-time literal)
+    #[command(about = "Open a recipe in Atlas Desktop")]
     Open {
         /// Recipe name to get recipe file to open
         #[arg(help = "recipe name or full path to the recipe file")]
@@ -781,7 +783,8 @@ enum Command {
         check: bool,
     },
 
-    #[command(about = "Check that your Goose setup is working")]
+    // brand-allow: clap attribute (compile-time literal)
+    #[command(about = "Check that your Atlas setup is working")]
     Doctor {},
 
     /// Manage system prompts and behaviors

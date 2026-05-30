@@ -1,0 +1,16 @@
+[Desktop Entry]
+# Atlas .desktop entry (T038).
+# Contract: contracts/installer-artifacts.md §Linux.
+# Installed to /usr/share/applications/atlas.desktop by the .deb/.rpm packages.
+Type=Application
+Name=Atlas
+GenericName=AI Agent
+Comment=Atlas — NET Group's AI agentic desktop app (forked from Goose)
+Exec=atlas %U
+Icon=atlas
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=Atlas
+# Custom URL scheme handler (contract R-URL-001). Atlas registers `atlas://`
+# exclusively; never `goose://`.
+MimeType=x-scheme-handler/atlas;

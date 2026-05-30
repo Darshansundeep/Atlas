@@ -26,11 +26,18 @@ ROOTS=(
 # Allowed paths — these MAY contain literal "Atlas" or "Goose" references.
 # Anything matching these globs is excluded from the lint.
 ALLOWLIST_PATHS=(
-    "ui/desktop/src/branding"               # branding module — the single source of truth
-    "crates/atlas-branding"                 # branding crate — the single source of truth
-    "ui/desktop/src/components/about"       # About screen — attribution lives here (case-insensitive match)
+    "ui/desktop/src/branding"               # branding module — single source of truth
+    "crates/atlas-branding"                 # branding crate — single source of truth
+    "ui/desktop/src/components/about"       # About surface — attribution lives here
     "ui/desktop/src/components/About"
+    "ui/desktop/src/i18n/messages"          # i18n JSON — needs translation PR, not sed sweep
+    "crates/goose-cli/src/scenario_tests/recordings"  # recorded LLM responses (model output, not Atlas source)
 )
+
+# Per-line directive: if a line contains `// brand-allow` or `# brand-allow`,
+# the literal on that line is permitted. Use for clap attribute literals and
+# other compile-time constants that can't easily reference branding constants.
+BRAND_ALLOW_DIRECTIVE='brand-allow'
 
 # Patterns that, if matched, do NOT count as user-facing literals:
 # - test fixtures / snapshots (Goose strings in test data are expected)
@@ -62,6 +69,10 @@ for term in "Atlas" "Goose"; do
             [[ $skip -eq 1 ]] && continue
             # Skip excluded patterns
             if echo "$file" | grep -qE "$EXCLUDE_REGEX"; then
+                continue
+            fi
+            # Per-line brand-allow directive (e.g. clap attribute literals)
+            if echo "$line" | grep -q "$BRAND_ALLOW_DIRECTIVE"; then
                 continue
             fi
             echo "VIOLATION  '$term' literal in $line"

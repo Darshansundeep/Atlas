@@ -1,4 +1,5 @@
 use anyhow::Result;
+use atlas_branding::DISPLAY_NAME;
 use goose::config::Config;
 use std::fs;
 use std::io::Read;
@@ -39,7 +40,7 @@ fn resolve_editor_from_sources(
 
 /// Build the markdown template content for the editor prompt.
 fn build_template(messages: &[&str], prefill: Option<&str>) -> String {
-    let mut content = String::from("# Goose Prompt Editor\n\n");
+    let mut content = format!("# {} Prompt Editor\n\n", DISPLAY_NAME);
 
     content.push_str("# Your prompt:\n\n");
     if let Some(text) = prefill {
@@ -253,7 +254,7 @@ This is the user's input
         assert!(path.to_str().unwrap().ends_with(".md"));
 
         let content = fs::read_to_string(path).unwrap();
-        assert!(content.contains("# Goose Prompt Editor"));
+        assert!(content.contains(&format!("# {} Prompt Editor", DISPLAY_NAME)));
         assert!(content.contains("## User: Hello"));
         assert!(content.contains("## Assistant: Hi there!"));
         assert!(content.contains("# Your prompt:"));
@@ -485,7 +486,7 @@ with multiple lines.
     #[test]
     fn test_build_template_no_prefill_no_messages() {
         let content = build_template(&[], None);
-        assert_eq!(content, "# Goose Prompt Editor\n\n# Your prompt:\n\n");
+        assert_eq!(content, format!("# {} Prompt Editor\n\n# Your prompt:\n\n", DISPLAY_NAME));
     }
 
     #[test]

@@ -668,7 +668,7 @@ async function handleFileOpen(filePath: string) {
 
     // Show user-friendly error notification
     new Notification({
-      title: 'Goose',
+      title: IDENTITY.displayName,
       body: `Could not open directory: ${path.basename(filePath)}`,
     }).show();
   }
@@ -974,7 +974,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     } else {
       dialog.showMessageBoxSync({
         type: 'error',
-        title: 'Goose Failed to Start',
+        title: `${IDENTITY.displayName} Failed to Start`,
         message: 'The backend server failed to start.',
         detail: failureDetailParts.join('\n\n'),
         buttons: ['OK'],
@@ -2173,7 +2173,9 @@ async function appMain() {
 
   const shortcuts = getKeyboardShortcuts(settings);
 
-  const appMenu = menu?.items.find((item) => item.label === 'Goose');
+  // Electron derives the app-menu label from package.json productName, which
+  // we set to IDENTITY.displayName ("Atlas") in T016. Match against that.
+  const appMenu = menu?.items.find((item) => item.label === IDENTITY.displayName);
   if (appMenu?.submenu) {
     appMenu.submenu.insert(1, new MenuItem({ type: 'separator' }));
     if (shortcuts.settings) {
@@ -2738,7 +2740,7 @@ app.whenReady().then(async () => {
   try {
     await appMain();
   } catch (error) {
-    dialog.showErrorBox('Goose Error', `Failed to create main window: ${error}`);
+    dialog.showErrorBox(`${IDENTITY.displayName} Error`, `Failed to create main window: ${error}`);
     app.quit();
   }
 });
