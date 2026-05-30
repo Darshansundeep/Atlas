@@ -470,19 +470,24 @@ export default function BaseChat({
             ) : null}
           </ScrollArea>
 
-          {chatState !== ChatState.Idle && (
-            <div className="absolute bottom-1 left-4 z-20 pointer-events-none">
-              <LoadingGoose
-                chatState={chatState}
-                message={
-                  messages.length > 0
-                    ? getThinkingMessage(messages[messages.length - 1])
-                    : undefined
-                }
-              />
-            </div>
-          )}
         </div>
+
+        {/* Loading indicator: lives in normal flex flow ABOVE the input card so
+            the rotating Atlas mark + status text doesn't overlap the input
+            (was: absolute bottom-1 inside the scroll-area parent — visually
+             collided with the top edge of ChatInputCard during streaming). */}
+        {chatState !== ChatState.Idle && (
+          <div className="mx-4 mb-2 px-2">
+            <LoadingGoose
+              chatState={chatState}
+              message={
+                messages.length > 0
+                  ? getThinkingMessage(messages[messages.length - 1])
+                  : undefined
+              }
+            />
+          </div>
+        )}
 
         <ChatInputCard
           className={cn(
