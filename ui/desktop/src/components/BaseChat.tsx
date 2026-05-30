@@ -39,6 +39,7 @@ import { Recipe } from '../recipe';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
 import { Goose } from './icons'; // brand-allow: internal component import
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
+import { IDENTITY } from '../branding';
 
 const i18n = defineMessages({
   failedToLoadSession: {
@@ -408,14 +409,14 @@ export default function BaseChat({
           {/* brand-allow: app watermark - top right */}
           <div className="absolute top-3 right-4 z-[60] flex flex-row items-center gap-1">
             <a
-              href="https://goose-docs.ai"
+              href={`https://${IDENTITY.vendorDomain}`}
               target="_blank"
               rel="noopener noreferrer"
               className="no-drag flex flex-row items-center gap-1 hover:opacity-80 transition-opacity"
             >
               <Goose className="size-5 goose-icon-animation" /> {/* brand-allow: internal component */}
               <span className="text-sm leading-none text-text-secondary -translate-y-px">
-                goose
+                {IDENTITY.displayName.toLowerCase()}
               </span>
             </a>
             <EnvironmentBadge className="translate-y-px" />

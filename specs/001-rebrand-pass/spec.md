@@ -89,6 +89,10 @@ A compliance / legal reviewer inspects an installed Atlas application to confirm
 - **FR-015**: The full upstream Goose automated test suite, plus any Atlas-added rebrand-verification tests, MUST execute on all three OSes in CI and report green before any release artifact is published.
 - **FR-016**: No literal occurrence of "goose" (case-insensitive) MAY appear in any user-facing surface except (a) the About-screen attribution paragraph, (b) the bundled `LICENSE` text, and (c) the bundled `NOTICE` text.
 
+- **FR-017**: Atlas v1 MUST present a **Claude-Code-style minimal default surface** in the navigation panel: New Chat, Session History, Settings only. Advanced upstream-Goose capabilities (Recipes, Skills, Apps, Scheduler, Extensions) MUST be **shipped-but-hidden by default**, gated by boolean flags in a `FEATURES` object in `ui/desktop/src/branding/index.ts`. Each capability can be re-enabled per release by flipping its flag to `true` — no code change to the nav component required. Hidden routes MAY remain reachable by direct URL (so future spec `021-admin-console` can push per-org overrides) but MUST NOT appear in the visible navigation when their flag is false.
+
+- **FR-018**: The Atlas brand mark (A+globe+ring on navy) MUST appear in place of the upstream Goose bird icon in every user-facing surface: chat header, sidebar logo, onboarding screen, About panel. The image is sourced from `ui/desktop/src/images/icon-512.png` (produced by `tools/scripts/build-icons.py`) and consumed via the existing `Goose` React component — which renders an `<img>` of the Atlas mark instead of the bird SVG. The React component's identifier remains `Goose` to minimize upstream-merge surface; only the rendered output is rebranded.
+
 ### Key Entities
 
 - **Product Identity**: The bundle of brand attributes that distinguishes Atlas from upstream Goose — display name, bundle identifier, application icons, URL scheme, environment variable prefix, configuration path namespace, HTTP user-agent string, and brand colour palette. This entity is what the rebrand creates.

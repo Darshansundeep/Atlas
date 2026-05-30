@@ -18,7 +18,7 @@ import { defineMessages, useIntl } from '../../i18n';
 const i18n = defineMessages({
   welcomeTitle: {
     id: 'onboardingGuard.welcomeTitle',
-    defaultMessage: 'Welcome to goose',
+    defaultMessage: 'Welcome to Atlas', // brand-allow: react-intl defaultMessage
   },
   welcomeDescription: {
     id: 'onboardingGuard.welcomeDescription',

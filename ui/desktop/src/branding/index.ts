@@ -14,6 +14,34 @@
  * CI job. The lockstep is enforced.
  */
 
+/**
+ * Atlas feature flags — controls which capabilities are visible in the UI.
+ *
+ * v1 ship plan: Claude-Code-style minimal default (chat + sessions + settings).
+ * Advanced Goose features (Recipes, Skills, Apps, Scheduler, Extensions) are
+ * SHIPPED but HIDDEN. Each can be turned on independently per release as the
+ * product matures.
+ *
+ * Future: spec 021-admin-console will let an org admin push per-org overrides
+ * via runtime.ts → BrandingConfig.features. The defaults here are the offline
+ * fallback / pre-auth defaults.
+ */
+export const FEATURES = {
+  // Always on at v1 — the Claude-Code default surface
+  newChat: true,
+  sessionHistory: true,
+  settings: true,
+
+  // Hidden at v1 — re-enable per future release
+  recipes: false,
+  skills: false,
+  apps: false,
+  scheduler: false,
+  extensions: false,
+} as const;
+
+export type FeatureFlag = keyof typeof FEATURES;
+
 export const IDENTITY = {
   displayName: 'Atlas',
   productSlug: 'atlas',

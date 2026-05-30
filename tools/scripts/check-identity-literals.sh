@@ -60,6 +60,12 @@ for term in "Atlas" "Goose"; do
         [[ -d "$root" ]] || continue
         # Find files containing the term, exclude allowlist paths/regexes
         # using a two-pass grep + post-filter for precision.
+        #
+        # Case-sensitive by design — lowercase 'goose' / 'atlas' is widely
+        # used in internal identifiers (function names, file paths, URL
+        # schemes, env-var prefixes). Bare-word UI leaks like
+        # `<span>goose</span>` are caught instead at PR-review or via the
+        # runtime-verification tasks (Phase 7).
         while IFS= read -r line; do
             file="${line%%:*}"
             rest="${line#*:}"

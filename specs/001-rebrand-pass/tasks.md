@@ -183,6 +183,16 @@ Paths assume the Atlas repository is a fork of `block/goose` cloned at the repo 
 - [ ] T068 Repeat T061–T066 on Linux (Ubuntu 22.04+).
 - [ ] T069 Once T061–T068 are all green, sweep the in-progress `[~]` tasks above and promote them to `[X]`. This is the final "spec matches reality" step.
 
+### Feature gating (NEW — tracks FR-017 + FR-018, recorded after live runtime testing)
+
+- [X] T070 Add `FEATURES` flag object to `ui/desktop/src/branding/index.ts` with v1 defaults: `newChat`, `sessionHistory`, `settings` = true; `recipes`, `skills`, `apps`, `scheduler`, `extensions` = false. Per FR-017.
+- [X] T071 Filter `NAV_ITEMS` in `ui/desktop/src/hooks/useNavigationItems.ts` by the FEATURES flags so hidden capabilities don't render in the sidebar. Routes remain reachable by direct URL (admin-console-pushed overrides can re-enable per org via spec `021-admin-console`).
+- [X] T072 Rebrand the `Goose` React icon component to render the Atlas mark (`ui/desktop/src/images/icon-512.png`) instead of the upstream bird SVG. Per FR-018. Component identifier kept as `Goose` to minimize upstream-merge surface (only visual output is branded).
+- [X] T073 Fix the lowercase "goose" rendered in the chat-header top-right (`ui/desktop/src/components/BaseChat.tsx:418`) — replace with `IDENTITY.displayName.toLowerCase()`. Bare-word leak my earlier regex missed.
+- [X] T074 Fix "Welcome to goose" in `ui/desktop/src/components/onboarding/OnboardingGuard.tsx:21` — replace with "Welcome to Atlas". Lowercase 'goose' that earlier sweeps missed.
+- [X] T075 Make the identity-literals lint **case-insensitive** (`grep -RIniE`) so future bare-word leaks like the BaseChat / Onboarding ones can't merge silently.
+- [ ] T076 [verify] Restart `pnpm run start-gui` and confirm: (a) sidebar shows only New Chat + Session History + Settings, (b) top-right shows "atlas" with Atlas mark icon, (c) chat surfaces use the Atlas logo where the Goose bird used to appear. Runtime acceptance of FR-017 + FR-018.
+
 **Acceptance**: Phase 7 is complete when at least one of (macOS / Windows / Linux) has T061–T066 green AND the other two have a written plan for completion (full multi-OS verification can be deferred until release-engineering Phase 5 completes).
 
 ---

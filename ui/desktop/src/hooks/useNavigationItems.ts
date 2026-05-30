@@ -20,8 +20,15 @@ export interface NavItem {
   tagAlign?: 'left' | 'right';
 }
 
-/** Top-level nav items (excluding Settings which is pinned to the bottom). */
-export const NAV_ITEMS: NavItem[] = [
+import { FEATURES } from '../branding';
+
+/** Top-level nav items (excluding Settings which is pinned to the bottom).
+ *
+ * Filtered by FEATURES flags from ../branding. v1 default = New Chat +
+ * Session History only (Claude-Code-style minimal). Recipes / Skills / Apps /
+ * Scheduler / Extensions are SHIPPED but HIDDEN, can be toggled per release.
+ */
+const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'home', path: '/', label: 'New Chat', icon: MessageSquarePlus },
   { id: 'recipes', path: '/recipes', label: 'Recipes', icon: FileText },
   { id: 'skills', path: '/skills', label: 'Skills', icon: Zap },
@@ -30,6 +37,21 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'extensions', path: '/extensions', label: 'Extensions', icon: Puzzle },
   { id: 'sessions', path: '/sessions', label: 'Session History', icon: History },
 ];
+
+const FEATURE_BY_NAV_ID: Record<string, keyof typeof FEATURES> = {
+  home: 'newChat',
+  recipes: 'recipes',
+  skills: 'skills',
+  apps: 'apps',
+  scheduler: 'scheduler',
+  extensions: 'extensions',
+  sessions: 'sessionHistory',
+};
+
+export const NAV_ITEMS: NavItem[] = ALL_NAV_ITEMS.filter((item) => {
+  const flag = FEATURE_BY_NAV_ID[item.id];
+  return flag ? FEATURES[flag] : true;
+});
 
 /** Settings is rendered separately, pinned to the bottom of the sidebar. */
 export const SETTINGS_NAV_ITEM: NavItem = {
