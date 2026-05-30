@@ -18,7 +18,6 @@ import { githubUpdater } from './githubUpdater';
 import { loadRecentDirs } from './recentDirs';
 import { errorMessage } from './conversionUtils';
 import {
-import { IDENTITY } from '../branding';
   trackUpdateCheckStarted,
   trackUpdateCheckCompleted,
   trackUpdateDownloadStarted,
@@ -26,6 +25,7 @@ import { IDENTITY } from '../branding';
   trackUpdateDownloadCompleted,
   trackUpdateInstallInitiated,
 } from './analytics';
+import { IDENTITY } from '../branding';
 
 let updateAvailable = false;
 let trayRef: Tray | null = null;
