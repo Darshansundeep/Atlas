@@ -1,51 +1,46 @@
-import { useState, useEffect } from 'react';
-import {
-  CodeXml,
-  Cog,
-  Fuel,
-  GalleryHorizontalEnd,
-  Gavel,
-  GlassWater,
-  Grape,
-  Watch0,
-  Watch1,
-  Watch2,
-  Watch3,
-  Watch4,
-  Watch5,
-  Watch6,
-} from './icons';
+// Atlas-branded thinking/waiting indicator. Replaces upstream's cycling icons
+// (Cog, Fuel, Watch faces, etc.) with the Atlas mark — rotating during
+// thinking, gently pulsing during waiting.
+//
+// Component name retained as AnimatedIcons for upstream-merge minimality.
+// brand-allow: legacy component identifier; visual is rebranded.
+import atlasMark from '../images/icon-512.png';
 
 interface AnimatedIconsProps {
   className?: string;
-  cycleInterval?: number; // milliseconds between icon changes
+  cycleInterval?: number; // retained for API compatibility
   variant?: 'thinking' | 'waiting';
 }
 
-const thinkingIcons = [CodeXml, Cog, Fuel, GalleryHorizontalEnd, Gavel, GlassWater, Grape];
-const waitingIcons = [Watch0, Watch1, Watch2, Watch3, Watch4, Watch5, Watch6];
-
 export default function AnimatedIcons({
   className = '',
-  cycleInterval = 500,
   variant = 'thinking',
 }: AnimatedIconsProps) {
-  const [currentIconIndex, setCurrentIconIndex] = useState(0);
-  const icons = variant === 'thinking' ? thinkingIcons : waitingIcons;
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIconIndex((prevIndex) => (prevIndex + 1) % icons.length);
-    }, cycleInterval);
-
-    return () => clearInterval(interval);
-  }, [cycleInterval, icons]);
-
-  const CurrentIcon = icons[currentIconIndex];
+  const animation =
+    variant === 'thinking'
+      ? 'atlas-orbit 2.2s linear infinite, atlas-pulse 1.4s ease-in-out infinite'
+      : 'atlas-pulse 1.8s ease-in-out infinite';
 
   return (
-    <div className={`transition-opacity duration-200 w-4 h-4 ${className}`}>
-      <CurrentIcon className="w-full h-full" />
+    <div className={`flex-shrink-0 ${className}`}>
+      <img
+        src={atlasMark}
+        alt={variant === 'thinking' ? 'Atlas is thinking' : 'Atlas is waiting'} // brand-allow
+        width={16}
+        height={16}
+        style={{ objectFit: 'contain', animation }}
+        draggable={false}
+      />
+      <style>{`
+        @keyframes atlas-orbit {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @keyframes atlas-pulse {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 }
