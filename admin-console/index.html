@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas Admin Console (placeholder)</title>
+  <style>
+    :root {
+      --brand-primary: #1F6FEB;
+      --brand-secondary: #0B1F3A;
+      --surface: #FFFFFF;
+      --text-primary: #0E1116;
+      --text-muted: #57606A;
+      --border: #D0D7DE;
+      --warning-bg: #FFF8C5;
+      --warning-border: #D4A72C;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #F6F8FA;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    header {
+      background: var(--brand-secondary);
+      color: #fff;
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header .logo {
+      width: 48px; height: 48px;
+      background: var(--brand-primary);
+      border-radius: 12px;
+      display: grid; place-items: center;
+      font-weight: 700;
+      font-size: 22px;
+    }
+    header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+    header .tagline { color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 2px; }
+    main { padding: 32px; max-width: 920px; margin: 0 auto; }
+    .placeholder-banner {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .placeholder-banner strong { color: #735100; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 { margin: 0 0 4px 0; font-size: 16px; font-weight: 600; }
+    .card .card-desc { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+    .field { display: block; margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+    }
+    .field input[type="text"],
+    .field input[type="color"],
+    .field input[type="file"] {
+      width: 100%;
+      max-width: 420px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .field-help { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+    button {
+      background: var(--brand-primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button.ghost {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .preview {
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: #FAFBFC;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .preview .preview-logo {
+      width: 56px; height: 56px;
+      background: var(--brand-primary);
+      border-radius: 12px;
+      display: grid; place-items: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 24px;
+      overflow: hidden;
+    }
+    .preview img { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
+    .preview .preview-name { font-size: 18px; font-weight: 600; }
+    .preview .preview-sub { font-size: 12px; color: var(--text-muted); }
+    code {
+      background: #EAEEF2;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo" id="hdr-logo">A</div>
+    <div>
+      <h1 id="hdr-name">Atlas Admin Console</h1>
+      <div class="tagline">Branding · Skills · Governance · Pricing</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="placeholder-banner">
+      <strong>⚠ Placeholder.</strong>
+      This page is a static UI mockup for future spec
+      <code>021-admin-console</code> (deferred to post-launch per
+      <code>ATLAS_BUILD_PLAN.md</code>). Inputs below modify the in-page preview
+      only — they do not persist, do not reach the desktop app, and do not call
+      any backend. The real admin console will be a separate web app at
+      <code>admin.atlas.netgroup.ai</code>.
+    </div>
+
+    <div class="card">
+      <h2>Branding</h2>
+      <div class="card-desc">Set the application name and logo shown to your organisation's Atlas users.</div>
+
+      <div class="field">
+        <label for="app-name">Application name</label>
+        <input type="text" id="app-name" value="Atlas" maxlength="32" />
+        <div class="field-help">Shown in the desktop app's title bar, About panel, and OS dock entry.</div>
+      </div>
+
+      <div class="field">
+        <label for="app-logo">Application logo</label>
+        <input type="file" id="app-logo" accept="image/png,image/svg+xml" />
+        <div class="field-help">PNG or SVG, ≥ 256×256 recommended. Replaces the default Atlas mark in-app.</div>
+      </div>
+
+      <div class="field">
+        <label for="primary-color">Brand primary colour</label>
+        <input type="color" id="primary-color" value="#1F6FEB" />
+        <div class="field-help">Used for the menubar accent, buttons, and links in the desktop app.</div>
+      </div>
+
+      <div class="actions">
+        <button id="apply-preview">Preview</button>
+        <button id="reset-preview" class="ghost">Reset to Atlas defaults</button>
+        <button id="save" disabled title="Endpoint not implemented (spec 021)">Save (disabled — backend not implemented)</button>
+      </div>
+
+      <div class="preview" id="preview">
+        <div class="preview-logo" id="preview-logo">A</div>
+        <div>
+          <div class="preview-name" id="preview-name">Atlas</div>
+          <div class="preview-sub">your.organisation@netgroup.ai · Atlas desktop preview</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Skills (coming soon)</h2>
+      <div class="card-desc">
+        Manage which MCP-based skills your organisation's Atlas users can install,
+        approve custom org-private skills, and pin versions.
+        Specs <code>020-skill-registry</code> through <code>024-skill-pricing</code> own this surface.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Governance (coming soon)</h2>
+      <div class="card-desc">
+        Configure data-handling policy (BYOK vs Atlas Cloud), token quotas, and
+        audit-log retention per org.
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Atlas · NET Group · Apache 2.0 · Built on
+    <a href="https://github.com/block/goose">Goose</a>
+  </footer>
+
+  <script>
+    // Pure UI preview logic — does NOT touch the desktop app or any backend.
+    const $name = document.getElementById('app-name');
+    const $logo = document.getElementById('app-logo');
+    const $color = document.getElementById('primary-color');
+    const $apply = document.getElementById('apply-preview');
+    const $reset = document.getElementById('reset-preview');
+    const $previewName = document.getElementById('preview-name');
+    const $previewLogo = document.getElementById('preview-logo');
+    const $hdrName = document.getElementById('hdr-name');
+    const $hdrLogo = document.getElementById('hdr-logo');
+
+    function apply() {
+      const name = ($name.value || 'Atlas').trim();
+      const color = $color.value || '#1F6FEB';
+      $previewName.textContent = name;
+      $previewLogo.style.background = color;
+      $hdrName.textContent = `${name} Admin Console`;
+      $hdrLogo.style.background = color;
+      $previewLogo.textContent = name.charAt(0).toUpperCase();
+      $hdrLogo.textContent = name.charAt(0).toUpperCase();
+
+      const file = $logo.files && $logo.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        $previewLogo.innerHTML = `<img alt="logo" src="${url}" />`;
+        $hdrLogo.innerHTML = `<img alt="logo" src="${url}" style="width:100%;height:100%;object-fit:contain;border-radius:12px"/>`;
+      }
+      document.documentElement.style.setProperty('--brand-primary', color);
+    }
+
+    function reset() {
+      $name.value = 'Atlas';
+      $color.value = '#1F6FEB';
+      $logo.value = '';
+      $previewLogo.innerHTML = 'A';
+      $hdrLogo.innerHTML = 'A';
+      $previewName.textContent = 'Atlas';
+      $hdrName.textContent = 'Atlas Admin Console';
+      document.documentElement.style.setProperty('--brand-primary', '#1F6FEB');
+    }
+
+    $apply.addEventListener('click', apply);
+    $reset.addEventListener('click', reset);
+  </script>
+</body>
+</html>

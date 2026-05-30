@@ -33,6 +33,8 @@ import log from './utils/logger';
 import { ensureWinShims } from './utils/winShims';
 import { addRecentDir, loadRecentDirs } from './utils/recentDirs';
 import { formatAppName, errorMessage, formatErrorForLogging } from './utils/conversionUtils';
+import { IDENTITY } from './branding';
+import { buildAboutPanelOptions } from './branding/about-options';
 import type { Settings, SettingKey } from './utils/settings';
 import { defaultSettings, getKeyboardShortcuts } from './utils/settings';
 import * as crypto from 'crypto';
@@ -611,10 +613,9 @@ app.on('open-url', async (_event, url) => {
 // Handle macOS drag-and-drop onto dock icon
 app.on('will-finish-launching', () => {
   if (process.platform === 'darwin') {
-    app.setAboutPanelOptions({
-      applicationName: 'Goose',
-      applicationVersion: app.getVersion(),
-    });
+    // T020: Atlas About panel — payload built by branding/about-options.ts
+    // (unit-tested in T014).
+    app.setAboutPanelOptions(buildAboutPanelOptions(app.getVersion()));
   }
 });
 
@@ -2407,23 +2408,37 @@ async function appMain() {
         helpMenu.submenu.append(new MenuItem({ type: 'separator' }));
       }
 
-      // Create the About Goose menu item with a submenu
-      const aboutGooseMenuItem = new MenuItem({
-        label: menuT('About Goose'),
-        submenu: Menu.buildFromTemplate([]), // Start with an empty submenu for About
+      // T020: About <Atlas> menu item with version, attribution, and links.
+      // The literal `IDENTITY.upstreamProjectName` is allowed here per
+      // contracts/identity-constants.md R-IC-004 (attribution surface).
+      const aboutAtlasMenuItem = new MenuItem({
+        label: `About ${IDENTITY.displayName}`,
+        submenu: Menu.buildFromTemplate([]),
       });
 
-      // Add the Version menu item (display only) to the About Goose submenu
-      if (aboutGooseMenuItem.submenu) {
-        aboutGooseMenuItem.submenu.append(
+      if (aboutAtlasMenuItem.submenu) {
+        aboutAtlasMenuItem.submenu.append(
           new MenuItem({
             label: `Version ${version || app.getVersion()}`,
             enabled: false,
           })
         );
+        aboutAtlasMenuItem.submenu.append(new MenuItem({ type: 'separator' }));
+        aboutAtlasMenuItem.submenu.append(
+          new MenuItem({
+            label: `Built on ${IDENTITY.upstreamProjectName} — view upstream project`,
+            click: () => shell.openExternal(IDENTITY.upstreamProjectUrl),
+          })
+        );
+        aboutAtlasMenuItem.submenu.append(
+          new MenuItem({
+            label: `${IDENTITY.vendor} — ${IDENTITY.vendorDomain}`,
+            click: () => shell.openExternal(`https://${IDENTITY.vendorDomain}`),
+          })
+        );
       }
 
-      helpMenu.submenu.append(aboutGooseMenuItem);
+      helpMenu.submenu.append(aboutAtlasMenuItem);
     }
   }
 

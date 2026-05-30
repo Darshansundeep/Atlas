@@ -6,6 +6,12 @@ const isLinuxVulkanBuild = process.env.GOOSE_DESKTOP_LINUX_VARIANT === 'vulkan';
 
 let cfg = {
   asar: true,
+  // Atlas identity (T017). Mirrors ui/desktop/src/branding/index.ts; the
+  // `identity-constants-in-sync` CI job keeps these in lockstep with the
+  // TypeScript and Rust branding modules.
+  name: 'Atlas',
+  appBundleId: 'ai.netgroup.atlas',
+  appCategoryType: 'public.app-category.developer-tools',
   extraResource: ['src/bin', 'src/images'],
   icon: 'src/images/icon',
   // Windows specific configuration
@@ -16,15 +22,17 @@ let cfg = {
     rfc3161TimeStampServer: 'http://timestamp.digicert.com',
     signWithParams: '/fd sha256 /tr http://timestamp.digicert.com /td sha256',
   },
-  // Protocol registration
+  // Atlas custom URL scheme (T017). Reserved hosts auth/open/deeplink per
+  // contracts/url-scheme.md. Atlas MUST NOT register goose:// (R-URL-001).
   protocols: [
     {
-      name: 'GooseProtocol',
-      schemes: ['goose'],
+      name: 'AtlasProtocol',
+      schemes: ['atlas'],
     },
   ],
   // macOS Info.plist extensions for drag-and-drop support
   extendInfo: {
+    CFBundleDisplayName: 'Atlas',
     // Document types for drag-and-drop support onto dock icon
     CFBundleDocumentTypes: [
       {
@@ -36,9 +44,9 @@ let cfg = {
     ],
     // Usage descriptions for macOS TCC (Transparency, Consent, and Control)
     NSCalendarsUsageDescription:
-      'Goose needs access to your calendars to help manage and query calendar events.',
+      'Atlas needs access to your calendars to help manage and query calendar events.',
     NSRemindersUsageDescription:
-      'Goose needs access to your reminders to help manage and query reminders.',
+      'Atlas needs access to your reminders to help manage and query reminders.',
   },
 };
 
