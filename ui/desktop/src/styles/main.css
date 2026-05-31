@@ -555,18 +555,23 @@ body {
 
 .bg-inline-code {
   border-radius: 4px;
-  color: var(--color-inline-code);
-  background-color: var(--color-neutral-50);
+  /* Explicit hard colors below — earlier the CSS-variable resolution path
+     produced white-on-white in some themes when the variable cascade
+     intersected with prose-* Tailwind overrides. Hard-coded values
+     guarantee readable contrast across light/dark themes. */
+  color: #c2410c;            /* burnt orange — readable on light bg */
+  background-color: #f4f4f5; /* zinc-100 */
   font-family: monospace;
   font-size: 12px;
   font-style: normal;
   font-weight: 400;
   line-height: normal;
-  padding: 2px 4px;
+  padding: 2px 6px;
 }
 
 .dark .bg-inline-code {
-  background-color: var(--color-neutral-900);
+  color: #fdba74;            /* lighter orange — readable on dark bg */
+  background-color: #1f1f23; /* zinc-900 */
 }
 
 .bg-inline-code:before {
