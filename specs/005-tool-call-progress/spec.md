@@ -1,8 +1,17 @@
 # Feature Specification: Tool-Call Progress + Cancel
 
 **Feature Branch**: `005-tool-call-progress`
-**Status**: Stub — full draft pending `/speckit-specify`
+**Status**: shipped (all 4 staged behaviours in LoadingGoose.tsx)
 **Created**: 2026-05-31
+
+## Implementation status
+
+Shipped: elapsed counter at ≥3s, Cancel pill at ≥15s (calls existing
+`stopStreaming`), softened copy + Diagnose pill at ≥60s (copies JSON
+bundle to clipboard), "Likely stuck" prompt at ≥5min with Cancel-and-report
++ Continue-waiting. FEATURES.toolCallProgress flag gates the staged
+behavior. Per-tool-call abort (vs session-level) deferred to a future
+spec (needs goosed-side change).
 
 ## Problem
 

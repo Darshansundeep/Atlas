@@ -4,9 +4,10 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
+- **Start here**: [`specs/ROADMAP.md`](specs/ROADMAP.md) — single-page status across every spec + tomorrow's pickup order.
 - Active features:
   - `specs/001-rebrand-pass/` — Atlas branding (~85% done, runtime-verified)
-  - `specs/002-cloud-auth/` — Windsurf-style sign-in (spec + plan + research + contracts complete; `/speckit-tasks` next)
+  - `specs/002-cloud-auth/` — Windsurf-style sign-in (stub-IdP end-to-end; production swap-ins pending)
 - Plans:
   - `specs/001-rebrand-pass/plan.md`
   - `specs/002-cloud-auth/plan.md`

@@ -1,8 +1,21 @@
 # Feature Specification: Skill Platform — Governance + Per-Org Enablement
 
 **Feature Branch**: `022-skill-platform`
-**Status**: Draft — needs design spike before /speckit-plan
+**Status**: v0.1 + v0.2 shipped. v0.3 (runtime hookup) is the next pickup.
 **Created**: 2026-05-31
+
+## Implementation status — 2026-05-31
+
+| Version | What | Shipped? |
+|---|---|---|
+| **v0.1** | skills_catalogue table + 6 seeds + admin CRUD + desktop browse + install/uninstall toggle | ✅ |
+| **v0.2** | skill_versions table + Edit / Save-in-place / Publish-new-version / version history modal / rollback | ✅ |
+| **v0.3** | **Runtime hookup** — install actually adds the MCP extension to goosed and surfaces tools in the next chat | 🟡 next pickup, see [`tasks.md`](tasks.md) Phase 3 |
+| v0.4 | ed25519 manifest signing + verification chain | ⏳ |
+| v0.5 | Per-org allow/deny lists (waits on 021 orgs) | ⏳ |
+
+See [`tasks.md`](tasks.md) for the full task list with file pointers
+and acceptance criteria. Recommended pickup: ROADMAP.md item #1.
 
 ## Problem
 

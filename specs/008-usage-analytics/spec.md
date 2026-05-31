@@ -1,8 +1,31 @@
 # Feature Specification: Usage Analytics Page (Tokens / Tool Calls / Cost)
 
 **Feature Branch**: `008-usage-analytics`
-**Status**: Stub — full draft pending `/speckit-specify`
+**Status**: v0.3 shipped (analytics page + ledger). v0.4 (tool-call ledger) pending.
 **Created**: 2026-05-31
+
+## Implementation status — 2026-05-31
+
+**Shipped**:
+- v0.1: Usage tab in sidebar (gated by `FEATURES.usagePage`). Reads
+  `listSessions()`, aggregates by (provider, model), 4 stat cards
+  (Sessions / Tokens in / Tokens out / Cost), Top models table, time
+  window picker (Today / 7d / 30d / All time).
+- v0.2: 5th stat card "Tool calls" + Top tools table, sourced from
+  live session conversation walk.
+- v0.3: **Append-only usage ledger** at
+  `~/Library/Application Support/Atlas/usage-history.jsonl`. Before
+  any session is deleted (per-row OR Delete-all), its
+  `{tokens, cost, provider, model, createdAt}` is snapshotted. Usage
+  page merges live sessions + ledger entries, de-duped by sessionId.
+  Footer shows "Includes N archived sessions" when ledger is
+  non-empty.
+
+**Pending — v0.4** (ROADMAP.md item B1):
+- Tool-call counts surviving Delete-all (ledger snapshots tokens but
+  not tool-call breakdowns yet). Adds `toolCallCounts: Record<string, number>`
+  to the ledger entry shape; UsagePage merges that into the `tools`
+  map in aggregate().
 
 ## Problem
 

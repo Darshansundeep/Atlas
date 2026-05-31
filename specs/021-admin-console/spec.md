@@ -1,8 +1,26 @@
 # Feature Specification: Admin Console — RBAC + Org Scoping + Billing UI
 
 **Feature Branch**: `021-admin-console`
-**Status**: Draft (replaces the minimum operator panel shipped in spec 002 follow-up)
+**Status**: minimum operator panel SHIPPED; full RBAC console deferred (multi-week, multi-blocker)
 **Created**: 2026-05-31
+
+## Implementation status — 2026-05-31
+
+**Shipped (the "minimum operator panel")** — `services/atlas-auth-api/src/admin/`:
+- HTML SPA at `GET /admin` (no build step; vanilla JS)
+- Shared-secret `ADMIN_TOKEN` gate (no RBAC yet)
+- Tabs: Overview / People / Sessions / Audit / Models / Skills
+- Stats cards (users / signups / sign-ins / active sessions / theft events)
+- People — list users + Revoke-all + Set-tier
+- Models — CRUD against spec 011 catalogue (17 seeded)
+- Skills — CRUD against spec 022 catalogue (with v0.2 version management)
+
+**Deferred — the FULL admin console**: org concept, RBAC roles, MFA gate,
+Stripe webhook → `subscription_state`, billing UI, invite flow, per-org
+consoles at `<org>.atlas.netgroup.ai/admin`. Multi-week, blocked on
+WorkOS-vs-roll-your-own decision + Stripe account. Nothing implemented.
+
+ROADMAP.md item C — not on the v1 launch path.
 
 ## Problem
 

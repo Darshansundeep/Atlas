@@ -1,8 +1,22 @@
 # Feature Specification: File Attachment UX
 
 **Feature Branch**: `006-file-attachments`
-**Status**: Stub — full draft pending `/speckit-specify`
+**Status**: shipped (clickable chips for path mentions in both user + assistant messages)
 **Created**: 2026-05-31
+
+## Implementation status
+
+Shipped: remarkFilePaths detects POSIX (`/...`), home-relative (`~/...`),
+and Windows (`C:\\...`, `D:/...`) paths in text nodes; emits link nodes
+with `atlas-file://` scheme. MarkdownContent intercepts and renders
+FilePathChip with file-type icon, click-to-open via `shell.openPath`,
+right-click via `shell.showItemInFolder`. Skips paths inside `code` /
+`inlineCode` / `link` parents to avoid double-transforming.
+
+Deferred (still in original open questions):
+- Hover preview thumbnails for image / PDF
+- Inline chips for paperclip-uploaded attachments on user message
+- Tooltip showing file size + last-modified-date
 
 ## Problem
 

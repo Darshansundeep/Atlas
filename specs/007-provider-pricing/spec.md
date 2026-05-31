@@ -1,8 +1,19 @@
 # Feature Specification: Per-Provider / Per-Model Pricing Configuration
 
 **Feature Branch**: `007-provider-pricing`
-**Status**: Stub — full draft pending `/speckit-specify`
+**Status**: shipped (per-user override; org overrides pending spec 011 + 021)
 **Created**: 2026-05-31
+
+## Implementation status
+
+Shipped: Settings → Models → "Pricing Overrides" card with editable
+table per (provider, model). Hide-free-providers toggle (default ON),
+search filter. Persisted in local `settings.pricingOverrides`.
+CostTracker resolves price as override → catalogue cascade. Live
+re-renders on `PRICING_OVERRIDES_CHANGED` event.
+
+Server-side catalogue + per-org overrides ship as spec 011 (catalogue
+shipped) + spec 021 (orgs deferred).
 
 ## Problem
 

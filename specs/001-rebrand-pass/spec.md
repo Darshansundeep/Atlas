@@ -4,7 +4,22 @@
 
 **Created**: 2026-05-28
 
-**Status**: Draft
+**Status**: ~85% shipped (see "Implementation status" below)
+
+## Implementation status — 2026-05-31 end-of-day
+
+| Done | Pending |
+|---|---|
+| Atlas branding on every visible surface (Atlas account card, sign-in, Hub, sidebar wordmark, About attribution) | T015 — binary rename in CI |
+| `atlas://` URL scheme registered + deep-link wired to renderer | T018-T019 — Rust path migration (some places still write `~/.local/share/goose/`) |
+| `ai.netgroup.atlas` bundle id; Atlas-keyed safeStorage; `auth.json` under userData/Atlas | Keychain namespace migration — macOS still prompts for legacy "goose" entries on first launch |
+| Apache 2.0 LICENSE + NOTICE-ATLAS bundled inside .app | T021-T023 — splash/installer assets still use legacy silhouette (commissioned logo will land in v2) |
+| FEATURES flag system; 5 hidden capabilities (recipes/apps/scheduler/extensions/skills) at v1 | Phase 7 — Windows + Linux runtime verification (only macOS tested end-to-end) |
+| Atlas-styled forge.config.ts (deb/rpm/flatpak naming, `ai.netgroup.atlas` Flatpak id) | |
+| Brand-allow lint directive system + brand-guard CI checks | |
+| Cash Sans CDN URL removed (see spec 023) | |
+
+**Recommended pick-up tomorrow**: [`../ROADMAP.md`](../ROADMAP.md) item #2 — keychain + sessions-path migration. That closes the most-visible remaining artifact (the legacy "goose" keychain prompt on first macOS launch).
 
 **Input**: User description: "Rebrand the upstream Goose desktop application as 'Atlas', a NET Group product, while keeping its behaviour functionally identical to upstream Goose. The rebrand replaces all product identity: binary name, application bundle identifier, platform config directory paths, environment variable prefix, custom URL scheme used for auth callbacks, HTTP user-agent strings sent to LLM providers, in-app strings, telemetry endpoints, and the application icon set / splash / tray icon / brand colour palette. Apache 2.0 LICENSE and NOTICE files from upstream Goose MUST be preserved and the in-app About screen MUST credit upstream Goose. The rebrand must apply uniformly to macOS, Windows, and Linux builds. Functionally the app remains indistinguishable from upstream Goose. A signed-in user from an upstream Goose install would NOT have their state migrated automatically. Success: an engineer can clone the Atlas repo and produce signed installer artifacts for all three OSes via CI with the Atlas identity throughout; no upstream string 'Goose' appears in any user-facing UI element except inside the About screen attribution paragraph; CI's full test suite passes on all three OSes; the About screen renders correctly on all three OSes showing both Atlas branding and Goose attribution."
 

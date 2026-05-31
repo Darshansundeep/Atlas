@@ -4,7 +4,25 @@
 
 **Created**: 2026-05-30
 
-**Status**: Draft
+**Status**: end-to-end shipped against stub IdP — production swap-ins pending
+
+## Implementation status — 2026-05-31
+
+**Working today (verified 20/20 integration checks)**: PKCE S256 (RFC 7636 vector covered), HS256 JWT iss=`https://api.atlas.netgroup.ai` aud=`atlas-desktop` 15-min TTL, opaque refresh (43-char base64url, bcrypt at rest, 30-day TTL), rotation on every refresh, theft-detection (R-RT-004) revokes all user tokens, `atlas://auth` deep link delivery, `safeStorage` keychain encryption, 5 endpoints (`/v1/auth/token`, `/v1/auth/revoke`, `/v1/me`, `/v1/subscription`, `/healthz`), audit log, hardened headers (HSTS, X-Atlas-Request-Id).
+
+**Pending — production swap-ins** (these need your accounts, not code):
+- T028 — Real WorkOS AuthKit (set `STUB_IDP=false`, configure `WORKOS_CLIENT_ID` + `WORKOS_API_KEY`)
+- T029 — Cloudflare Workers deploy (`wrangler.toml` + thin `worker.ts`)
+- T030 — Production Postgres (Neon recommended)
+- T031 — Cert pinning to leaf SPKI of `api.atlas.netgroup.ai`
+- T032 — Rotate to RS256 + JWKS published at `/.well-known/jwks.json` (currently 404 by design)
+- T033 — Loopback callback server (parallel firewall fallback; paste-the-code primary is shipped)
+- T034 — Playwright E2E test against stub IdP
+- T035 — token-leak-scan CI check
+
+See [`tasks.md`](tasks.md) for full list. ROADMAP.md item A1.
+
+
 
 **Input**: User description: "When a user opens Atlas they see a Sign In screen. Clicking Sign In opens their system browser to a NET-Group-owned auth page (`auth.atlas.netgroup.ai`). They sign in with email + password OR Google/SSO. A subscription check happens server-side. The browser redirects back to the desktop app via `atlas://auth?code=…`. The desktop app exchanges that code for an access + refresh token, stores them in the OS keychain, and the user is signed in — closing the app and reopening doesn't re-prompt. Same UX as Cursor / Windsurf / Linear / ChatGPT Desktop."
 
