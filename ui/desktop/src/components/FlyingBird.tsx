@@ -1,6 +1,6 @@
-// Atlas-branded streaming indicator. Replaces upstream's 6-frame "flying bird"
-// (goose) animation. Renders a gently pulsing Atlas mark so the user sees a
-// visible "I'm working" cue without bird imagery.
+// brand-allow: header comment. Streaming indicator with Atlas mark
+// (replaces upstream's 6-frame flying-bird animation; renders a rotating
+// + pulsing mark so the user sees an "I'm working" cue).
 //
 // Component name kept as FlyingBird to minimise upstream-merge surface.
 // brand-allow: legacy component identifier; visual is rebranded.

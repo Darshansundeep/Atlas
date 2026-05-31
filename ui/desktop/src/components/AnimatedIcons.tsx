@@ -1,6 +1,6 @@
-// Atlas-branded thinking/waiting indicator. Replaces upstream's cycling icons
-// (Cog, Fuel, Watch faces, etc.) with the Atlas mark — rotating during
-// thinking, gently pulsing during waiting.
+// brand-allow: header comment. Thinking/waiting indicator with Atlas mark
+// (replaces upstream's cycling Cog/Fuel/Watch icons — rotating during
+// thinking, gently pulsing during waiting).
 //
 // Component name retained as AnimatedIcons for upstream-merge minimality.
 // brand-allow: legacy component identifier; visual is rebranded.

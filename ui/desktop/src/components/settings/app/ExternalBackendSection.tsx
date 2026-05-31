@@ -15,7 +15,7 @@ const i18n = defineMessages({
   description: {
     id: 'externalBackendSection.description',
     defaultMessage:
-      'By default goose launches a server for you, use this to connect to an external goose server',
+      'By default Atlas launches a server for you, use this to connect to an external Atlas server', // brand-allow
   },
   useExternalServer: {
     id: 'externalBackendSection.useExternalServer',
@@ -23,7 +23,7 @@ const i18n = defineMessages({
   },
   useExternalServerDescription: {
     id: 'externalBackendSection.useExternalServerDescription',
-    defaultMessage: 'Connect to a goose server running elsewhere (requires app restart)',
+    defaultMessage: 'Connect to an Atlas server running elsewhere (requires app restart)', // brand-allow
   },
   serverUrl: {
     id: 'externalBackendSection.serverUrl',

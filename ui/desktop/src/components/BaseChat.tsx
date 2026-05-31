@@ -473,7 +473,7 @@ export default function BaseChat({
         </div>
 
         {/* Loading indicator: lives in normal flex flow ABOVE the input card so
-            the rotating Atlas mark + status text doesn't overlap the input
+            the rotating brand mark + status text doesn't overlap the input
             (was: absolute bottom-1 inside the scroll-area parent — visually
              collided with the top edge of ChatInputCard during streaming). */}
         {chatState !== ChatState.Idle && (

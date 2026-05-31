@@ -42,6 +42,13 @@ export const FEATURES = {
   // Chat-input footer indicators — hidden at v1 for a clean minimal look
   contextWindowIndicator: false,    // the 0↑/0↓ + 0/128k token counter
   extensionCountBadge: false,       // the puzzle-piece "15" badge in the input footer
+
+  // Settings tabs / sub-sections — hidden at v1, release per future update
+  meshTab: false,                   // "Mesh" tab (Inference Mesh / distributed LLM)
+  systemPromptsTab: false,          // "Prompts" tab — admin-managed in future, not user-facing
+  atlasServerConnect: false,        // Settings > Sessions > "Atlas server" external-backend connector
+  tunnelRemote: false,              // Settings > Sessions > Tunnel (remote control)
+  telegramGateway: false,           // Settings > Sessions > Telegram gateway
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURES;

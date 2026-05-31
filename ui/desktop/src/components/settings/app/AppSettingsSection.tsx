@@ -18,7 +18,7 @@ const i18n = defineMessages({
   appearanceTitle: { id: 'settings.appearance.title', defaultMessage: 'Appearance' },
   appearanceDesc: {
     id: 'settings.appearance.description',
-    defaultMessage: 'Configure how goose appears on your system',
+    defaultMessage: 'Configure how Atlas appears on your system', // brand-allow
   },
   notifications: { id: 'settings.notifications.title', defaultMessage: 'Notifications' },
   notificationsDesc: {
@@ -38,10 +38,10 @@ const i18n = defineMessages({
   menuBarIcon: { id: 'settings.menuBarIcon.title', defaultMessage: 'Menu bar icon' },
   menuBarIconDesc: {
     id: 'settings.menuBarIcon.description',
-    defaultMessage: 'Show goose in the menu bar',
+    defaultMessage: 'Show Atlas in the menu bar', // brand-allow
   },
   dockIcon: { id: 'settings.dockIcon.title', defaultMessage: 'Dock icon' },
-  dockIconDesc: { id: 'settings.dockIcon.description', defaultMessage: 'Show goose in the dock' },
+  dockIconDesc: { id: 'settings.dockIcon.description', defaultMessage: 'Show Atlas in the dock' }, // brand-allow
   preventSleep: { id: 'settings.preventSleep.title', defaultMessage: 'Prevent Sleep' },
   preventSleepDesc: {
     id: 'settings.preventSleep.description',
@@ -56,12 +56,12 @@ const i18n = defineMessages({
   themeTitle: { id: 'settings.theme.title', defaultMessage: 'Theme' },
   themeDesc: {
     id: 'settings.theme.description',
-    defaultMessage: 'Customize the look and feel of goose',
+    defaultMessage: 'Customize the look and feel of Atlas', // brand-allow
   },
   helpTitle: { id: 'settings.help.title', defaultMessage: 'Help & feedback' },
   helpDesc: {
     id: 'settings.help.description',
-    defaultMessage: 'Help us improve goose by reporting issues or requesting new features',
+    defaultMessage: 'Help us improve Atlas by reporting issues or requesting new features', // brand-allow
   },
   reportBug: { id: 'settings.help.reportBug', defaultMessage: 'Report a Bug' },
   requestFeature: { id: 'settings.help.requestFeature', defaultMessage: 'Request a Feature' },
@@ -69,7 +69,7 @@ const i18n = defineMessages({
   updatesTitle: { id: 'settings.updates.title', defaultMessage: 'Updates' },
   updatesDesc: {
     id: 'settings.updates.description',
-    defaultMessage: 'Check for and install updates to keep goose running at its best',
+    defaultMessage: 'Check for and install updates to keep Atlas running at its best', // brand-allow
   },
   notificationsModalTitle: {
     id: 'settings.notifications.modal.title',
@@ -89,7 +89,7 @@ const i18n = defineMessages({
   },
   notificationsMacStep3: {
     id: 'settings.notifications.modal.macStep3',
-    defaultMessage: 'Find and select goose in the application list',
+    defaultMessage: 'Find and select Atlas in the application list', // brand-allow
   },
   notificationsMacStep4: {
     id: 'settings.notifications.modal.macStep4',
@@ -109,7 +109,7 @@ const i18n = defineMessages({
   },
   notificationsWinStep3: {
     id: 'settings.notifications.modal.winStep3',
-    defaultMessage: 'Find and select goose in the application list',
+    defaultMessage: 'Find and select Atlas in the application list', // brand-allow
   },
   notificationsWinStep4: {
     id: 'settings.notifications.modal.winStep4',

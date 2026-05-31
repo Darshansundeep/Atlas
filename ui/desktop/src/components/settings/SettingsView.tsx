@@ -7,6 +7,7 @@ import ExternalBackendSection from './app/ExternalBackendSection';
 import AppSettingsSection from './app/AppSettingsSection';
 import ConfigSettings from './config/ConfigSettings';
 import PromptsSettingsSection from './PromptsSettingsSection';
+import { FEATURES } from '../../branding';
 import { ExtensionConfig } from '../../api';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
 import {
@@ -204,7 +205,7 @@ export default function SettingsView({
                       {intl.formatMessage(i18n.tabLocalInference)}
                     </TabsTrigger>
                   )}
-                  {!tunnelDisabled && (
+                  {!tunnelDisabled && FEATURES.meshTab && (
                     <TabsTrigger
                       value="mesh"
                       className="flex gap-2"
@@ -226,14 +227,16 @@ export default function SettingsView({
                     <Share2 className="h-4 w-4" />
                     {intl.formatMessage(i18n.tabSession)}
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="prompts"
-                    className="flex gap-2"
-                    data-testid="settings-prompts-tab"
-                  >
-                    <FileText className="h-4 w-4" />
-                    {intl.formatMessage(i18n.tabPrompts)}
-                  </TabsTrigger>
+                  {FEATURES.systemPromptsTab && (
+                    <TabsTrigger
+                      value="prompts"
+                      className="flex gap-2"
+                      data-testid="settings-prompts-tab"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {intl.formatMessage(i18n.tabPrompts)}
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger
                     value="keyboard"
                     className="flex gap-2"
@@ -266,7 +269,7 @@ export default function SettingsView({
                   </TabsContent>
                 )}
 
-                {!tunnelDisabled && (
+                {!tunnelDisabled && FEATURES.meshTab && (
                   <TabsContent
                     value="mesh"
                     className="mt-0 focus-visible:outline-none focus-visible:ring-0"
@@ -288,22 +291,24 @@ export default function SettingsView({
                 >
                   <div className="space-y-8 pb-8">
                     <SessionSharingSection />
-                    <ExternalBackendSection />
-                    {!tunnelDisabled && (
+                    {FEATURES.atlasServerConnect && <ExternalBackendSection />}
+                    {!tunnelDisabled && (FEATURES.tunnelRemote || FEATURES.telegramGateway) && (
                       <div className="space-y-4">
-                        <TunnelSection />
-                        <GatewaySettingsSection />
+                        {FEATURES.tunnelRemote && <TunnelSection />}
+                        {FEATURES.telegramGateway && <GatewaySettingsSection />}
                       </div>
                     )}
                   </div>
                 </TabsContent>
 
-                <TabsContent
-                  value="prompts"
-                  className="mt-0 focus-visible:outline-none focus-visible:ring-0"
-                >
-                  <PromptsSettingsSection />
-                </TabsContent>
+                {FEATURES.systemPromptsTab && (
+                  <TabsContent
+                    value="prompts"
+                    className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+                  >
+                    <PromptsSettingsSection />
+                  </TabsContent>
+                )}
 
                 <TabsContent
                   value="keyboard"

@@ -8,6 +8,12 @@
 
 **Input**: User description: "When a user opens Atlas they see a Sign In screen. Clicking Sign In opens their system browser to a NET-Group-owned auth page (`auth.atlas.netgroup.ai`). They sign in with email + password OR Google/SSO. A subscription check happens server-side. The browser redirects back to the desktop app via `atlas://auth?code=…`. The desktop app exchanges that code for an access + refresh token, stores them in the OS keychain, and the user is signed in — closing the app and reopening doesn't re-prompt. Same UX as Cursor / Windsurf / Linear / ChatGPT Desktop."
 
+## Clarifications
+
+### Session 2026-05-31
+
+- Q: Which auth provider should Atlas use? → A: **WorkOS** (same provider Cursor uses; free SSO at Atlas's scale; B2B-native maps to roadmap specs 021/022/024; OIDC-compliant so backend swap remains possible).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — First-time sign-in via browser (Priority: P1) 🎯 MVP
@@ -127,7 +133,7 @@ The user clicks "Sign Out" in Settings. Atlas revokes the refresh token at the b
 
 ## Assumptions
 
-- **NET Group provisions a managed auth provider** — Clerk, WorkOS, Auth0, Supabase Auth, or a similar SaaS — that handles email/password, social login, MFA, and the OAuth 2.0 / PKCE flow. Building the IdP from scratch is out of scope of this spec; the choice is captured in `research.md` once `/speckit-clarify` runs.
+- **Auth provider is WorkOS** (locked via `/speckit-clarify` 2026-05-31). Atlas uses **WorkOS AuthKit** for the hosted sign-in UI and OAuth 2.0 / OIDC + PKCE flow, with WorkOS Organizations for the future per-org admin surface (spec `021-admin-console`) and SSO/SAML/SCIM as the natural upgrade path for enterprise customers (spec `022-skill-governance`). Migration to a different OIDC-compliant IdP is possible without desktop-client changes because the desktop only ever speaks OAuth/OIDC, never a WorkOS-proprietary API.
 - **`auth.atlas.netgroup.ai` and `api.atlas.netgroup.ai` are deployable** — domains registered, DNS configured, TLS certs in place. The cloud-side web app and token endpoint are part of this spec's implementation; the platform / hosting choice is captured during planning.
 - **Subscription billing exists in some form** — Stripe is the assumed default for v1; the integration is the subject of spec `024-skill-pricing` (deferred). For this spec, the auth backend exposes a `subscription` claim/endpoint with sensible mock data until real billing is wired.
 - **BYOK mode continues to work signed-out** at v1, per the constitution's "data sovereignty" principle. Sign-in is required only for Atlas Cloud (proxy) features.

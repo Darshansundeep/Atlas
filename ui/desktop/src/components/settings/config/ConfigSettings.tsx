@@ -27,11 +27,11 @@ const i18n = defineMessages({
   },
   description: {
     id: 'configSettings.description',
-    defaultMessage: 'Edit your goose configuration settings',
+    defaultMessage: 'Edit your Atlas configuration settings', // brand-allow
   },
   descriptionWithProvider: {
     id: 'configSettings.descriptionWithProvider',
-    defaultMessage: 'Edit your goose configuration settings (current settings for {provider})',
+    defaultMessage: 'Edit your Atlas configuration settings (current settings for {provider})', // brand-allow
   },
   editConfiguration: {
     id: 'configSettings.editConfiguration',
