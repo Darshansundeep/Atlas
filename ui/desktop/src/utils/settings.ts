@@ -63,6 +63,8 @@ export interface Settings {
   pricingOverrides: PricingOverrides;
   sessionSharing: SessionSharingConfig;
   seenAnnouncementIds: string[];
+  /** Spec 023/Item 11 — true once the onboarding tour has been completed or skipped. */
+  tourCompleted: boolean;
 }
 
 export type SettingKey = keyof Settings;
@@ -101,6 +103,7 @@ export const defaultSettings: Settings = {
   responseStyle: 'concise',
   showPricing: true,
   pricingOverrides: {},
+  tourCompleted: false,
   sessionSharing: {
     enabled: false,
     baseUrl: '',

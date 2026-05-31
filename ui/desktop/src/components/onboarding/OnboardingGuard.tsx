@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useConfig } from '../ConfigContext';
 import { useModelAndProvider } from '../ModelAndProviderContext';
 import { Button } from '../ui/button';
-import ProviderSelector from './ProviderSelector';
+import AtlasProviderChooser from './AtlasProviderChooser';
 import OnboardingSuccess from './OnboardingSuccess';
 import { AtlasMark } from '../atlas-brand/AtlasMark';
 import { HeroBackground } from '../atlas-brand/HeroBackground';
@@ -264,7 +264,7 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
               </p>
             </div>
 
-            <ProviderSelector
+            <AtlasProviderChooser
               onConfigured={handleConfigured}
               onFirstSelection={() => setHasSelection(true)}
             />

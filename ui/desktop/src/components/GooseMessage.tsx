@@ -129,7 +129,15 @@ export default function GooseMessage({
         {(displayText.trim() || imagePaths.length > 0) && (
           <div className="flex flex-col group">
             {displayText.trim() && (
-              <div ref={contentRef} className="w-full">
+              <div
+                ref={contentRef}
+                className="w-full rounded-2xl px-4 py-3 transition-shadow"
+                style={{
+                  background: 'var(--color-background-secondary)',
+                  border: '1px solid var(--color-border-primary)',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
                 <MarkdownContent content={displayText} />
               </div>
             )}

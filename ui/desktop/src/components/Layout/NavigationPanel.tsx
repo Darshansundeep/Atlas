@@ -104,11 +104,19 @@ const SessionRow: React.FC<SessionRowProps> = ({ session, active, status, onClic
     <div
       onClick={() => !isEditing && onClick()}
       className={cn(
-        'flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer text-sm',
-        'hover:bg-background-tertiary/60 transition-colors',
-        active && 'bg-background-tertiary'
+        'group flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-sm relative',
+        'hover:bg-background-tertiary/60 transition-all',
+        active && 'bg-background-tertiary text-text-prominent'
       )}
     >
+      {/* Match nav-row active rail for visual consistency */}
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r"
+          style={{ background: 'var(--atlas-brand-cobalt)' }}
+        />
+      )}
       <InlineEditText
         value={getSessionDisplayName(session)}
         onSave={async (newName) => {

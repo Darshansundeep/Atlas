@@ -14,11 +14,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, Coins, MessageSquare, RefreshCw } from 'lucide-react';
+import { BarChart3, Coins, MessageSquare, RefreshCw, Wrench } from 'lucide-react';
 import { listSessions } from '../../api';
 import type { Session } from '../../api';
 import { useAuth } from '../../auth';
 import { AtlasMark } from '../atlas-brand/AtlasMark';
+import { EmptyIllustration } from '../atlas-brand/EmptyIllustration';
 import { fetchCanonicalModelInfo } from '../../utils/canonical';
 import { getOverrideFor, PRICING_OVERRIDES_CHANGED } from '../../utils/pricing';
 
@@ -55,13 +56,20 @@ interface DayBucket {
   cost: number;
 }
 
+interface ToolRow {
+  name: string;
+  count: number;
+}
+
 interface Aggregated {
   rows: AggRow[];
   totalSessions: number;
   totalInput: number;
   totalOutput: number;
   totalCost: number;
+  totalToolCalls: number;
   daily: DayBucket[];
+  topTools: ToolRow[];
 }
 
 /** Pull canonical price (or override) per (provider, model). Cached. */
@@ -102,10 +110,12 @@ async function aggregate(sessions: Session[], windowKey: WindowKey): Promise<Agg
 
   const grouped = new Map<string, AggRow>();
   const daily = new Map<string, DayBucket>();
+  const tools = new Map<string, number>();
   let totalSessions = 0;
   let totalInput = 0;
   let totalOutput = 0;
   let totalCost = 0;
+  let totalToolCalls = 0;
 
   for (const s of inWindow) {
     totalSessions++;
@@ -145,12 +155,40 @@ async function aggregate(sessions: Session[], windowKey: WindowKey): Promise<Agg
     } else {
       daily.set(d, { date: d, tokens: total, cost });
     }
+
+    // Tool-call counting — best-effort, only works when session.conversation
+    // is hydrated by the backend.
+    if (Array.isArray(s.conversation)) {
+      for (const msg of s.conversation) {
+        if (!msg || !Array.isArray(msg.content)) continue;
+        for (const c of msg.content) {
+          if (c && (c as { type?: string }).type === 'toolRequest') {
+            totalToolCalls++;
+            // Try to extract a friendly tool name.
+            const tc = (c as { toolCall?: Record<string, unknown> }).toolCall;
+            const rawName =
+              (tc?.name as string | undefined) ??
+              (tc?.tool_name as string | undefined) ??
+              ((tc?.params as Record<string, unknown> | undefined)?.name as string | undefined);
+            const name = rawName ?? 'unknown';
+            tools.set(name, (tools.get(name) ?? 0) + 1);
+          }
+        }
+      }
+    }
   }
 
   const rows = Array.from(grouped.values()).sort((a, b) => b.totalTokens - a.totalTokens);
   const dailyArr = Array.from(daily.values()).sort((a, b) => a.date.localeCompare(b.date));
+  const topTools: ToolRow[] = Array.from(tools.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 
-  return { rows, totalSessions, totalInput, totalOutput, totalCost, daily: dailyArr };
+  return {
+    rows, totalSessions, totalInput, totalOutput, totalCost,
+    totalToolCalls, daily: dailyArr, topTools,
+  };
 }
 
 function fmtTokens(n: number): string {
@@ -236,6 +274,12 @@ export default function UsagePage() {
         value: fmtCost(agg.totalCost),
         hint: 'USD, override-aware',
         icon: Coins,
+      },
+      {
+        label: 'Tool calls',
+        value: agg.totalToolCalls.toLocaleString(),
+        hint: agg.topTools.length === 0 && agg.totalToolCalls === 0 ? 'no tool data yet' : 'recorded invocations',
+        icon: Wrench,
       },
     ];
   }, [agg, windowKey]);
@@ -459,11 +503,23 @@ export default function UsagePage() {
           </div>
 
           {!agg || agg.rows.length === 0 ? (
-            <div
-              className="px-4 py-10 text-center"
-              style={{ color: 'var(--color-text-tertiary)', fontSize: '0.85rem' }}
-            >
-              {loading ? 'Loading sessions…' : 'No sessions in this window yet.'}
+            <div className="px-4 py-10 flex flex-col items-center gap-3">
+              <EmptyIllustration variant="usage" width={220} />
+              <div className="text-center">
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: 'var(--atlas-brand-ink)',
+                    marginBottom: 4,
+                  }}
+                >
+                  {loading ? 'Loading sessions…' : 'No activity yet in this window'}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', maxWidth: '36ch' }}>
+                  Start a chat to see token usage, cost, and model breakdowns here.
+                </div>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -497,6 +553,61 @@ export default function UsagePage() {
             </div>
           )}
         </div>
+
+        {/* Top tools — only show if we actually have data */}
+        {agg && agg.topTools.length > 0 && (
+          <div
+            className="rounded-xl mt-4"
+            style={{
+              background: 'var(--color-background-primary)',
+              border: '1px solid var(--color-border-primary)',
+              boxShadow: 'var(--shadow-md)',
+            }}
+          >
+            <div
+              className="px-4 py-3 flex items-center justify-between"
+              style={{ borderBottom: '1px solid var(--color-border-primary)' }}
+            >
+              <span
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                Top tools
+              </span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)' }}>
+                top 10 by invocations
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ color: 'var(--color-text-secondary)' }}>
+                    <th className="text-left px-4 py-2 text-xs font-medium uppercase tracking-wider">Tool</th>
+                    <th className="text-right px-4 py-2 text-xs font-medium uppercase tracking-wider">Invocations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agg.topTools.map((t) => (
+                    <tr
+                      key={t.name}
+                      style={{ borderTop: '1px solid var(--color-border-primary)' }}
+                    >
+                      <td className="px-4 py-2.5 font-mono" style={{ color: 'var(--atlas-brand-ink)' }}>
+                        {t.name}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{t.count.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <p
           className="mt-4 text-center"

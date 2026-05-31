@@ -23,7 +23,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'flex h-auto justify-start rounded-md bg-background-primary p-1 text-muted-foreground gap-2',
+      // Pill-track tab list with subtle inset.
+      'inline-flex h-auto items-center justify-start gap-1 rounded-lg bg-background-tertiary p-1 text-muted-foreground',
       className
     )}
     {...props}
@@ -39,7 +40,13 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex items-center justify-start whitespace-nowrap rounded-lg px-3 py-1.5 text-sm ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background-secondary data-[state=active]:text-text-primary data-[state=active]:shadow-sm hover:bg-background-secondary hover:text-text-primary',
+      // Premium tab pill: white-card on cobalt-text when active, soft hover otherwise.
+      'flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium',
+      'ring-offset-background transition-all duration-200',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+      'disabled:pointer-events-none disabled:opacity-50',
+      'data-[state=active]:bg-background-primary data-[state=active]:text-text-prominent data-[state=active]:shadow-sm',
+      'hover:bg-background-secondary/60 hover:text-text-primary',
       className
     )}
     {...props}

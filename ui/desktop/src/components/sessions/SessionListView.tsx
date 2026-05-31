@@ -18,6 +18,7 @@ import {
   Puzzle,
 } from 'lucide-react';
 import { Card } from '../ui/card';
+import { EmptyIllustration } from '../atlas-brand/EmptyIllustration';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatMessageTimestamp } from '../../utils/timeUtils';
@@ -88,6 +89,11 @@ const i18n = defineMessages({
   duplicateFailed: { id: 'sessions.toast.duplicateFailed', defaultMessage: 'Failed to duplicate session: {error}' },
   deleteSuccess: { id: 'sessions.toast.deleted', defaultMessage: 'Session deleted successfully' },
   deleteFailed: { id: 'sessions.toast.deleteFailed', defaultMessage: 'Failed to delete session "{name}": {error}' },
+  deleteAllTitle: { id: 'sessions.deleteAll.title', defaultMessage: 'Delete all chats' },
+  deleteAllConfirm: { id: 'sessions.deleteAll.confirm', defaultMessage: 'Delete ALL {count} sessions. This cannot be undone.' },
+  deleteAllAction: { id: 'sessions.deleteAll.action', defaultMessage: 'Delete all' },
+  deleteAllDoing: { id: 'sessions.deleteAll.doing', defaultMessage: 'Deleting {done} of {total}…' },
+  deleteAllDone: { id: 'sessions.deleteAll.done', defaultMessage: 'Deleted {count} sessions' },
   importSuccess: { id: 'sessions.toast.imported', defaultMessage: 'Session imported successfully' },
   importFailed: { id: 'sessions.toast.importFailed', defaultMessage: 'Failed to import session: {error}' },
   exportSuccess: { id: 'sessions.toast.exported', defaultMessage: 'Session exported successfully' },
@@ -565,6 +571,34 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       setSessionToDelete(null);
     }, []);
 
+    // Spec 023 / Item 8 — Delete all sessions.
+    const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+    const [deletingAll, setDeletingAll] = useState<{ done: number; total: number } | null>(null);
+
+    const handleDeleteAll = useCallback(async () => {
+      setShowDeleteAllConfirm(false);
+      const total = sessions.length;
+      if (total === 0) return;
+      setDeletingAll({ done: 0, total });
+      let succeeded = 0;
+      // Serial — deletion is fast and we want progress reporting.
+      for (let i = 0; i < sessions.length; i++) {
+        const s = sessions[i];
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await deleteSession({ path: { session_id: s.id }, throwOnError: true });
+          succeeded++;
+        } catch (e) {
+          console.error('bulk delete failed for', s.id, e);
+        }
+        setDeletingAll({ done: i + 1, total });
+      }
+      setDeletingAll(null);
+      toast.success(intl.formatMessage(i18n.deleteAllDone, { count: succeeded }));
+      window.dispatchEvent(new CustomEvent(AppEvents.SESSION_DELETED, { detail: { sessionId: '*' } }));
+      await loadSessions();
+    }, [sessions, loadSessions, intl]);
+
     const handleExportSession = useCallback(async (session: Session, e: React.MouseEvent) => {
       e.stopPropagation();
 
@@ -915,10 +949,16 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
 
       if (sessions.length === 0) {
         return (
-          <div className="flex flex-col justify-center h-full text-text-secondary">
-            <MessageSquareText className="h-12 w-12 mb-4" />
-            <p className="text-lg mb-2">{intl.formatMessage(i18n.noSessions)}</p>
-            <p className="text-sm">{intl.formatMessage(i18n.noSessionsDesc)}</p>
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <EmptyIllustration variant="sessions" width={260} />
+            <div className="text-center">
+              <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--atlas-brand-ink)', marginBottom: 4 }}>
+                {intl.formatMessage(i18n.noSessions)}
+              </p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', maxWidth: '36ch' }}>
+                {intl.formatMessage(i18n.noSessionsDesc)}
+              </p>
+            </div>
           </div>
         );
       }
@@ -999,6 +1039,21 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
                       <Upload className="w-4 h-4" />
                       {intl.formatMessage(i18n.importSession)}
                     </Button>
+                    {sessions.length > 0 && (
+                      <Button
+                        onClick={() => setShowDeleteAllConfirm(true)}
+                        variant="outline"
+                        size="sm"
+                        disabled={deletingAll !== null}
+                        className="flex items-center gap-2"
+                        style={{ color: 'var(--color-text-danger)', borderColor: 'var(--color-border-danger)' }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {deletingAll
+                          ? intl.formatMessage(i18n.deleteAllDoing, deletingAll)
+                          : intl.formatMessage(i18n.deleteAllAction)}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <p className="text-sm text-text-secondary mb-4">
@@ -1179,6 +1234,17 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
           confirmVariant="destructive"
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
+        />
+
+        <ConfirmationModal
+          isOpen={showDeleteAllConfirm}
+          title={intl.formatMessage(i18n.deleteAllTitle)}
+          message={intl.formatMessage(i18n.deleteAllConfirm, { count: sessions.length })}
+          confirmLabel={intl.formatMessage(i18n.deleteAllAction)}
+          cancelLabel={intl.formatMessage(i18n.cancel)}
+          confirmVariant="destructive"
+          onConfirm={handleDeleteAll}
+          onCancel={() => setShowDeleteAllConfirm(false)}
         />
       </>
     );
