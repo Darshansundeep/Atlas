@@ -318,3 +318,247 @@ export async function upsertSkill(pool: pg.Pool, s: SkillUpsert): Promise<void> 
 export async function deleteSkill(pool: pg.Pool, skillId: string): Promise<void> {
   await pool.query(`DELETE FROM skills_catalogue WHERE skill_id = $1`, [skillId]);
 }
+
+// ----- Spec 022 v0.2: skill versioning ---------------------------------
+
+export interface SkillVersionRow {
+  skill_id: string;
+  version: string;
+  title: string;
+  description: string;
+  category: string;
+  publisher_name: string;
+  publisher_verified: boolean;
+  kind: 'extension' | 'recipe' | 'composite';
+  manifest: Record<string, unknown>;
+  capabilities: string[];
+  pricing_tier_min: 'free' | 'pro' | 'team' | 'enterprise';
+  changelog: string | null;
+  published_at: string;
+}
+
+export async function listSkillVersions(pool: pg.Pool, skillId: string): Promise<SkillVersionRow[]> {
+  const { rows } = await pool.query<SkillVersionRow>(
+    `SELECT skill_id, version, title, description, category,
+            publisher_name, publisher_verified, kind, manifest,
+            capabilities, pricing_tier_min, changelog, published_at
+       FROM skill_versions
+      WHERE skill_id = $1
+      ORDER BY published_at DESC`,
+    [skillId]
+  );
+  return rows;
+}
+
+/**
+ * Save edits to the existing current version in place — for typo fixes,
+ * description tweaks, or category re-tagging. Does NOT create a new
+ * history entry. The version string is not allowed to change.
+ */
+export async function saveSkillInPlace(pool: pg.Pool, s: SkillUpsert): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Confirm skill exists and version matches what's currently current.
+  const { rows } = await pool.query<{ version: string }>(
+    `SELECT version FROM skills_catalogue WHERE skill_id = $1`,
+    [s.skill_id]
+  );
+  if (rows.length === 0) {
+    return { ok: false, error: 'skill_not_found' };
+  }
+  if (rows[0].version !== s.version) {
+    return { ok: false, error: 'version_mismatch_use_publish' };
+  }
+  await pool.query(
+    `UPDATE skills_catalogue
+        SET title = $2,
+            description = $3,
+            category = $4,
+            publisher_name = $5,
+            publisher_verified = $6,
+            kind = $7,
+            manifest = $8::jsonb,
+            capabilities = $9::jsonb,
+            pricing_tier_min = $10,
+            deprecated = $11,
+            updated_at = NOW()
+      WHERE skill_id = $1`,
+    [
+      s.skill_id,
+      s.title,
+      s.description,
+      s.category ?? 'general',
+      s.publisher_name,
+      s.publisher_verified ?? false,
+      s.kind,
+      JSON.stringify(s.manifest),
+      JSON.stringify(s.capabilities ?? []),
+      s.pricing_tier_min ?? 'free',
+      s.deprecated ?? false,
+    ]
+  );
+  // Also patch the matching skill_versions row so the history stays
+  // in sync with the current row's metadata. (Manifest snapshot of a
+  // shipped version is immutable — we only update display fields here.)
+  await pool.query(
+    `UPDATE skill_versions
+        SET title = $3,
+            description = $4,
+            category = $5,
+            publisher_name = $6,
+            publisher_verified = $7,
+            kind = $8,
+            manifest = $9::jsonb,
+            capabilities = $10::jsonb,
+            pricing_tier_min = $11
+      WHERE skill_id = $1 AND version = $2`,
+    [
+      s.skill_id,
+      s.version,
+      s.title,
+      s.description,
+      s.category ?? 'general',
+      s.publisher_name,
+      s.publisher_verified ?? false,
+      s.kind,
+      JSON.stringify(s.manifest),
+      JSON.stringify(s.capabilities ?? []),
+      s.pricing_tier_min ?? 'free',
+    ]
+  );
+  return { ok: true };
+}
+
+/**
+ * Publish a NEW version of a skill. The new version must not collide
+ * with any existing version in `skill_versions`. The previous current
+ * version is preserved in history.
+ *
+ * On first-publish (no existing row), this creates BOTH the catalogue
+ * row and the first version history entry.
+ */
+export async function publishNewSkillVersion(
+  pool: pg.Pool,
+  s: SkillUpsert & { changelog?: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Reject re-using a version that already exists in history.
+  const existing = await pool.query<{ version: string }>(
+    `SELECT version FROM skill_versions WHERE skill_id = $1 AND version = $2`,
+    [s.skill_id, s.version]
+  );
+  if (existing.rows.length > 0) {
+    return { ok: false, error: 'version_already_published' };
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Upsert into the catalogue (this is the new "current").
+    await client.query(
+      `INSERT INTO skills_catalogue
+         (skill_id, version, title, description, category, publisher_name,
+          publisher_verified, kind, manifest, capabilities, pricing_tier_min,
+          deprecated, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,NOW())
+       ON CONFLICT (skill_id) DO UPDATE SET
+         version            = EXCLUDED.version,
+         title              = EXCLUDED.title,
+         description        = EXCLUDED.description,
+         category           = EXCLUDED.category,
+         publisher_name     = EXCLUDED.publisher_name,
+         publisher_verified = EXCLUDED.publisher_verified,
+         kind               = EXCLUDED.kind,
+         manifest           = EXCLUDED.manifest,
+         capabilities       = EXCLUDED.capabilities,
+         pricing_tier_min   = EXCLUDED.pricing_tier_min,
+         deprecated         = EXCLUDED.deprecated,
+         updated_at         = NOW()`,
+      [
+        s.skill_id,
+        s.version,
+        s.title,
+        s.description,
+        s.category ?? 'general',
+        s.publisher_name,
+        s.publisher_verified ?? false,
+        s.kind,
+        JSON.stringify(s.manifest),
+        JSON.stringify(s.capabilities ?? []),
+        s.pricing_tier_min ?? 'free',
+        s.deprecated ?? false,
+      ]
+    );
+    // Append the version-history entry.
+    await client.query(
+      `INSERT INTO skill_versions
+         (skill_id, version, title, description, category, publisher_name,
+          publisher_verified, kind, manifest, capabilities, pricing_tier_min, changelog)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12)`,
+      [
+        s.skill_id,
+        s.version,
+        s.title,
+        s.description,
+        s.category ?? 'general',
+        s.publisher_name,
+        s.publisher_verified ?? false,
+        s.kind,
+        JSON.stringify(s.manifest),
+        JSON.stringify(s.capabilities ?? []),
+        s.pricing_tier_min ?? 'free',
+        s.changelog ?? null,
+      ]
+    );
+    await client.query('COMMIT');
+    return { ok: true };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Roll the catalogue back to a previously-published version. The
+ * historical row stays in skill_versions; the catalogue row is rewritten
+ * to mirror the chosen version. NO new history entry is created.
+ */
+export async function rollbackSkillToVersion(
+  pool: pg.Pool,
+  skillId: string,
+  version: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { rows } = await pool.query<SkillVersionRow>(
+    `SELECT * FROM skill_versions WHERE skill_id = $1 AND version = $2`,
+    [skillId, version]
+  );
+  if (rows.length === 0) return { ok: false, error: 'version_not_found' };
+  const v = rows[0];
+  await pool.query(
+    `UPDATE skills_catalogue
+        SET version = $2,
+            title = $3,
+            description = $4,
+            category = $5,
+            publisher_name = $6,
+            publisher_verified = $7,
+            kind = $8,
+            manifest = $9::jsonb,
+            capabilities = $10::jsonb,
+            pricing_tier_min = $11,
+            updated_at = NOW()
+      WHERE skill_id = $1`,
+    [
+      skillId,
+      v.version,
+      v.title,
+      v.description,
+      v.category,
+      v.publisher_name,
+      v.publisher_verified,
+      v.kind,
+      JSON.stringify(v.manifest),
+      JSON.stringify(v.capabilities),
+      v.pricing_tier_min,
+    ]
+  );
+  return { ok: true };
+}

@@ -94,3 +94,17 @@ ON CONFLICT (skill_id) DO UPDATE
       capabilities      = EXCLUDED.capabilities,
       pricing_tier_min  = EXCLUDED.pricing_tier_min,
       updated_at        = NOW();
+
+-- Backfill skill_versions for any catalogue row that doesn't yet have
+-- a matching history entry (the seed list above and any older v0.1
+-- inserts that predate the version table). Idempotent.
+INSERT INTO skill_versions
+  (skill_id, version, title, description, category, publisher_name,
+   publisher_verified, kind, manifest, capabilities, pricing_tier_min,
+   changelog, published_at)
+SELECT c.skill_id, c.version, c.title, c.description, c.category,
+       c.publisher_name, c.publisher_verified, c.kind, c.manifest,
+       c.capabilities, c.pricing_tier_min, 'Initial seed', c.created_at
+FROM skills_catalogue c
+LEFT JOIN skill_versions v ON v.skill_id = c.skill_id AND v.version = c.version
+WHERE v.skill_id IS NULL;

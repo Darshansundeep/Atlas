@@ -91,6 +91,30 @@ CREATE TABLE IF NOT EXISTS skills_catalogue (
 CREATE INDEX IF NOT EXISTS skills_catalogue_category_idx ON skills_catalogue(category);
 CREATE INDEX IF NOT EXISTS skills_catalogue_publisher_idx ON skills_catalogue(publisher_name);
 
+-- Spec 022 v0.2 — Skill version history. One row per published version
+-- per skill. The skills_catalogue row above always points at the
+-- currently-active version (denormalized for fast public reads).
+-- Re-publishing the same version is rejected at the application layer
+-- so admins can roll forward but never silently overwrite history.
+CREATE TABLE IF NOT EXISTS skill_versions (
+  skill_id              TEXT NOT NULL REFERENCES skills_catalogue(skill_id) ON DELETE CASCADE,
+  version               TEXT NOT NULL,
+  title                 TEXT NOT NULL,
+  description           TEXT NOT NULL,
+  category              TEXT NOT NULL DEFAULT 'general',
+  publisher_name        TEXT NOT NULL,
+  publisher_verified    BOOLEAN NOT NULL DEFAULT FALSE,
+  kind                  TEXT NOT NULL,
+  manifest              JSONB NOT NULL,
+  capabilities          JSONB NOT NULL DEFAULT '[]',
+  pricing_tier_min      TEXT NOT NULL DEFAULT 'free',
+  changelog             TEXT,
+  published_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (skill_id, version)
+);
+CREATE INDEX IF NOT EXISTS skill_versions_recent_idx
+  ON skill_versions(skill_id, published_at DESC);
+
 -- Spec 011 — Central model catalogue.
 -- Source-of-truth for (provider, model) pricing + capabilities. The
 -- desktop catalogue ships bundled for offline use; this table is the

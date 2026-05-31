@@ -424,24 +424,28 @@ export function adminHtml(): string {
         <div class="panel">
           <div class="panel-header">
             <h2>Skills catalogue</h2>
-            <span class="hint">spec 022 v0.1 — manifests, no signing yet</span>
+            <span class="hint">spec 022 v0.2 — versioned, editable</span>
           </div>
           <div id="skills-table"></div>
         </div>
 
         <div class="panel" style="margin-top: 18px;">
           <div class="panel-header">
-            <h2>Publish or update a skill</h2>
-            <span class="hint">upsert by skill_id</span>
+            <h2 id="skills-form-title">Publish a new skill</h2>
+            <span class="hint" id="skills-form-hint">first publish creates the catalogue row</span>
           </div>
           <form id="skills-form" style="padding: 0 16px 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <!-- Mode flag: 'publish' (new version) or 'save' (in-place edit). Set by Edit / Cancel. -->
+            <input type="hidden" name="mode" value="publish" id="skills-form-mode" />
+            <input type="hidden" name="original_skill_id" id="skills-form-original-id" value="" />
+
             <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
               Skill ID (reverse-DNS)
               <input name="skill_id" required placeholder="ai.netgroup.atlas.example" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:13px;margin-top:4px;" />
             </label>
             <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
               Version
-              <input name="version" placeholder="1.0.0" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+              <input name="version" required placeholder="1.0.0" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
             </label>
             <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
               Kind
@@ -477,15 +481,37 @@ export function adminHtml(): string {
               </select>
             </label>
             <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
-              Manifest (JSON — extensions, recipe, capabilities)
+              Manifest (JSON)
               <textarea name="manifest" rows="4" placeholder='{"extensions":[],"capabilities":{}}' style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px;resize:vertical;">{}</textarea>
             </label>
-            <div style="grid-column: 1 / -1;">
-              <button type="submit" style="background:linear-gradient(135deg,#0f1729,#1e2a55);color:#fafaf7;border:0;padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
-                Publish skill
+            <label id="skills-form-changelog-wrap" style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Changelog (this version's notes)
+              <textarea name="changelog" rows="2" placeholder="Bumped extension to ^3.0; added arXiv source" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;resize:vertical;"></textarea>
+            </label>
+            <div style="grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button type="submit" id="skills-form-submit" style="background:linear-gradient(135deg,#0f1729,#1e2a55);color:#fafaf7;border:0;padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Publish new version
               </button>
+              <button type="button" id="skills-form-save-inplace" style="display:none;background:transparent;border:1px solid var(--cobalt);color:var(--cobalt);padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Save (in-place)
+              </button>
+              <button type="button" id="skills-form-cancel" style="display:none;background:transparent;border:1px solid var(--hairline-2);color:var(--ink-soft);padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Cancel
+              </button>
+              <span id="skills-form-status" class="hint" style="margin-left:6px;"></span>
             </div>
           </form>
+        </div>
+
+        <!-- Version history modal -->
+        <div id="skills-versions-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,41,0.55); backdrop-filter: blur(6px); z-index:50; align-items:center; justify-content:center; padding:24px;">
+          <div style="background:#fff; border-radius:14px; width:min(680px, 95vw); max-height:80vh; overflow:hidden; box-shadow: var(--shadow-lg); display:flex; flex-direction:column;">
+            <div style="padding:14px 16px; border-bottom:1px solid var(--hairline); display:flex; align-items:center; justify-content:space-between;">
+              <h3 id="skills-versions-title" style="margin:0; font-size:14px; font-weight:600;">Version history</h3>
+              <button type="button" id="skills-versions-close" style="background:transparent;border:0;cursor:pointer;color:var(--ink-soft);font-size:18px;line-height:1;">×</button>
+            </div>
+            <div id="skills-versions-body" style="overflow-y:auto; flex:1; padding:0;"></div>
+          </div>
         </div>
       </section>
     </main>
@@ -694,15 +720,19 @@ export function adminHtml(): string {
     document.getElementById('catalogue-table').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
   }
 
+  // Cached after each loadSkills() so action handlers can re-hydrate the form.
+  let SKILLS_CACHE = [];
+
   async function loadSkills() {
     const skills = await api('/admin/v1/skills');
+    SKILLS_CACHE = skills;
     if (skills.length === 0) {
       document.getElementById('skills-table').innerHTML = '<div class="empty">No skills published yet.</div>';
       return;
     }
     const head = '<thead><tr>' +
       '<th>Skill ID</th><th>Title</th><th>Kind</th><th>Publisher</th>' +
-      '<th>Tier</th><th>Version</th><th>Updated</th><th></th>' +
+      '<th>Tier</th><th>Version</th><th>Updated</th><th>Actions</th>' +
       '</tr></thead>';
     const rows = skills.map(s =>
       '<tr' + (s.deprecated ? ' style="opacity:.5"' : '') + '>' +
@@ -715,11 +745,113 @@ export function adminHtml(): string {
         '<td>' + tierPill(s.pricing_tier_min) + '</td>' +
         '<td class="mono">' + escape(s.version) + '</td>' +
         '<td>' + fmtDate(s.updated_at) + '</td>' +
-        '<td><button class="action danger" data-act="del-skill" data-id="' + escape(s.skill_id) + '">Delete</button></td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="action" data-act="edit-skill" data-id="' + escape(s.skill_id) + '">Edit</button> ' +
+          '<button class="action" data-act="versions-skill" data-id="' + escape(s.skill_id) + '">Versions</button> ' +
+          '<button class="action danger" data-act="del-skill" data-id="' + escape(s.skill_id) + '">Delete</button>' +
+        '</td>' +
       '</tr>'
     ).join('');
     document.getElementById('skills-table').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
   }
+
+  // --- Skill form mode helpers ----
+  function resetSkillForm() {
+    const f = document.getElementById('skills-form');
+    f.reset();
+    document.getElementById('skills-form-mode').value = 'publish';
+    document.getElementById('skills-form-original-id').value = '';
+    document.getElementById('skills-form-title').textContent = 'Publish a new skill';
+    document.getElementById('skills-form-hint').textContent = 'first publish creates the catalogue row';
+    document.getElementById('skills-form-submit').textContent = 'Publish new version';
+    document.getElementById('skills-form-save-inplace').style.display = 'none';
+    document.getElementById('skills-form-cancel').style.display = 'none';
+    document.getElementById('skills-form-status').textContent = '';
+    f.querySelector('[name=skill_id]').readOnly = false;
+    document.getElementById('skills-form-changelog-wrap').style.display = '';
+    document.getElementById('skills-form-submit').style.display = '';
+  }
+
+  function fillSkillFormFromRow(s) {
+    const f = document.getElementById('skills-form');
+    f.querySelector('[name=skill_id]').value = s.skill_id;
+    f.querySelector('[name=skill_id]').readOnly = true;
+    f.querySelector('[name=version]').value = s.version;
+    f.querySelector('[name=kind]').value = s.kind;
+    f.querySelector('[name=title]').value = s.title;
+    f.querySelector('[name=description]').value = s.description ?? '';
+    f.querySelector('[name=category]').value = s.category ?? 'general';
+    f.querySelector('[name=publisher_name]').value = s.publisher_name ?? '';
+    f.querySelector('[name=pricing_tier_min]').value = s.pricing_tier_min ?? 'free';
+    f.querySelector('[name=manifest]').value = JSON.stringify(s.manifest ?? {}, null, 2);
+    f.querySelector('[name=changelog]').value = '';
+
+    document.getElementById('skills-form-mode').value = 'save';
+    document.getElementById('skills-form-original-id').value = s.skill_id;
+    document.getElementById('skills-form-title').textContent = 'Editing ' + s.skill_id;
+    document.getElementById('skills-form-hint').textContent = 'Save = in-place (typo fixes); Publish new version = bump version';
+    document.getElementById('skills-form-submit').textContent = 'Publish new version';
+    document.getElementById('skills-form-save-inplace').style.display = '';
+    document.getElementById('skills-form-cancel').style.display = '';
+    document.getElementById('skills-form-status').textContent = '';
+    document.getElementById('skills-form-changelog-wrap').style.display = '';
+    // Scroll the form into view
+    f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  async function openVersionHistory(skillId) {
+    const modal = document.getElementById('skills-versions-modal');
+    const body = document.getElementById('skills-versions-body');
+    document.getElementById('skills-versions-title').textContent = 'Version history — ' + skillId;
+    modal.style.display = 'flex';
+    body.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const versions = await api('/admin/v1/skills/' + encodeURIComponent(skillId) + '/versions');
+      if (versions.length === 0) {
+        body.innerHTML = '<div class="empty">No version history (older entry pre-dates v0.2).</div>';
+        return;
+      }
+      const current = SKILLS_CACHE.find(s => s.skill_id === skillId);
+      const currentVersion = current ? current.version : null;
+      const rows = versions.map(v => {
+        const isCurrent = v.version === currentVersion;
+        return '<div style="padding: 12px 16px; border-bottom: 1px solid var(--hairline);">' +
+          '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">' +
+            '<div style="display:flex; align-items:center; gap:8px;">' +
+              '<span class="mono" style="font-weight:600;">v' + escape(v.version) + '</span>' +
+              (isCurrent ? ' <span class="pill success">current</span>' : '') +
+              ' <span class="hint">' + fmtDate(v.published_at) + '</span>' +
+            '</div>' +
+            (isCurrent ? '' :
+              '<button class="action" data-act="rollback-skill" data-id="' + escape(skillId) + '" data-version="' + escape(v.version) + '">Roll back</button>'
+            ) +
+          '</div>' +
+          (v.changelog
+            ? '<div style="margin-top:6px; font-size:12px; color:var(--ink-soft); line-height:1.5;">' + escape(v.changelog) + '</div>'
+            : '<div style="margin-top:6px; font-size:11px; color:var(--ink-mute); font-style:italic;">no changelog</div>'
+          ) +
+        '</div>';
+      }).join('');
+      body.innerHTML = rows;
+    } catch (e) {
+      body.innerHTML = '<div class="empty" style="color:var(--danger)">Failed to load versions: ' + escape(e.message || 'unknown') + '</div>';
+    }
+  }
+
+  function closeVersionHistory() {
+    document.getElementById('skills-versions-modal').style.display = 'none';
+  }
+  // Hook up close button + backdrop click + escape
+  document.getElementById('skills-versions-close').addEventListener('click', closeVersionHistory);
+  document.getElementById('skills-versions-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeVersionHistory();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeVersionHistory();
+  });
+
+  // Cancel-edit button
+  document.getElementById('skills-form-cancel').addEventListener('click', resetSkillForm);
 
   async function loadAll() {
     try {
@@ -749,6 +881,27 @@ export function adminHtml(): string {
         toast('Revoke failed: ' + err.message, true);
       }
     }
+    if (btn && btn.dataset.act === 'edit-skill') {
+      const id = btn.dataset.id;
+      const s = SKILLS_CACHE.find(x => x.skill_id === id);
+      if (s) fillSkillFormFromRow(s);
+    }
+    if (btn && btn.dataset.act === 'versions-skill') {
+      openVersionHistory(btn.dataset.id);
+    }
+    if (btn && btn.dataset.act === 'rollback-skill') {
+      const id = btn.dataset.id;
+      const v = btn.dataset.version;
+      if (!confirm('Roll back ' + id + ' to v' + v + '? The current version stays in history.')) return;
+      try {
+        await api('/admin/v1/skills/' + encodeURIComponent(id) + '/rollback/' + encodeURIComponent(v), { method: 'POST' });
+        toast('Rolled back ' + id + ' to v' + v);
+        closeVersionHistory();
+        await loadSkills();
+      } catch (err) {
+        toast('Rollback failed: ' + (err.message || 'unknown'), true);
+      }
+    }
     if (btn && btn.dataset.act === 'del-skill') {
       const id = btn.dataset.id;
       if (!confirm('Delete skill ' + id + '?')) return;
@@ -774,39 +927,79 @@ export function adminHtml(): string {
     }
   });
 
-  // Skills form
+  // Build a payload from the current form state. Returns null on bad JSON.
+  function buildSkillPayload(form, formData) {
+    let manifest = {};
+    try {
+      manifest = JSON.parse(formData.get('manifest') || '{}');
+    } catch (err) {
+      toast('Manifest must be valid JSON', true);
+      return null;
+    }
+    return {
+      skill_id: (formData.get('skill_id') || '').trim(),
+      version: (formData.get('version') || '0.1.0').trim(),
+      title: (formData.get('title') || '').trim(),
+      description: (formData.get('description') || '').trim(),
+      category: (formData.get('category') || 'general').trim(),
+      publisher_name: (formData.get('publisher_name') || 'Unknown').trim(),
+      kind: formData.get('kind') || 'composite',
+      manifest,
+      pricing_tier_min: formData.get('pricing_tier_min') || 'free',
+      changelog: (formData.get('changelog') || '').trim() || undefined,
+    };
+  }
+
+  // Submit handler — branches on mode.
   document.getElementById('skills-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    let manifest = {};
-    try {
-      manifest = JSON.parse(f.get('manifest') || '{}');
-    } catch (err) {
-      toast('Manifest must be valid JSON', true);
-      return;
-    }
-    const payload = {
-      skill_id: (f.get('skill_id') || '').trim(),
-      version: (f.get('version') || '0.1.0').trim(),
-      title: (f.get('title') || '').trim(),
-      description: (f.get('description') || '').trim(),
-      category: (f.get('category') || 'general').trim(),
-      publisher_name: (f.get('publisher_name') || 'Unknown').trim(),
-      kind: f.get('kind') || 'composite',
-      manifest,
-      pricing_tier_min: f.get('pricing_tier_min') || 'free',
-    };
+    const payload = buildSkillPayload(e.target, f);
+    if (!payload) return;
+    // The visible submit button always means "Publish new version" —
+    // in-place save uses its own button (handled separately).
     try {
       await api('/admin/v1/skills', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      toast('Published ' + payload.skill_id);
-      e.target.reset();
+      toast('Published ' + payload.skill_id + ' v' + payload.version);
+      resetSkillForm();
       await loadSkills();
     } catch (err) {
-      toast('Publish failed: ' + err.message, true);
+      const detail = err.message || 'unknown';
+      if (detail.includes('version_already_published')) {
+        toast('Version ' + payload.version + ' already exists — bump the version', true);
+      } else {
+        toast('Publish failed: ' + detail, true);
+      }
+    }
+  });
+
+  // In-place Save (no version bump) — only available when editing.
+  document.getElementById('skills-form-save-inplace').addEventListener('click', async () => {
+    const form = document.getElementById('skills-form');
+    const f = new FormData(form);
+    const payload = buildSkillPayload(form, f);
+    if (!payload) return;
+    const originalId = document.getElementById('skills-form-original-id').value;
+    try {
+      await api('/admin/v1/skills/' + encodeURIComponent(originalId), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      toast('Saved (in-place) — version ' + payload.version + ' unchanged');
+      resetSkillForm();
+      await loadSkills();
+    } catch (err) {
+      const detail = err.message || 'unknown';
+      if (detail.includes('version_mismatch_use_publish')) {
+        toast('You changed the version — use "Publish new version" instead', true);
+      } else {
+        toast('Save failed: ' + detail, true);
+      }
     }
   });
 
