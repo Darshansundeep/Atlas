@@ -480,6 +480,8 @@ export default function BaseChat({
           <div className="mx-4 mb-2 px-2">
             <LoadingGoose
               chatState={chatState}
+              onCancel={stopStreaming}
+              sessionId={sessionId}
               message={
                 messages.length > 0
                   ? getThinkingMessage(messages[messages.length - 1])
