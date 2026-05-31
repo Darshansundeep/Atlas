@@ -97,10 +97,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-deb',
       config: {
-        name: 'Goose',
-        bin: 'Goose',
-        maintainer: 'AAIF (Agentic AI Foundation)',
-        homepage: 'https://goose-docs.ai/',
+        name: 'atlas',
+        bin: 'Atlas',
+        maintainer: 'NET Group',
+        homepage: 'https://netgroup.ai/atlas',
         categories: ['Development'],
         desktopTemplate: './forge.deb.desktop',
         options: {
@@ -113,10 +113,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-rpm',
       config: {
-        name: 'Goose',
-        bin: 'Goose',
-        maintainer: 'AAIF (Agentic AI Foundation)',
-        homepage: 'https://goose-docs.ai/',
+        name: 'atlas',
+        bin: 'Atlas',
+        maintainer: 'NET Group',
+        homepage: 'https://netgroup.ai/atlas',
         categories: ['Development'],
         desktopTemplate: './forge.rpm.desktop',
         options: {
@@ -131,16 +131,16 @@ module.exports = {
       name: '@electron-forge/maker-flatpak',
       config: {
         options: {
-          id: 'io.github.block.Goose', // NOTE: kept for backwards compat with existing installs
+          id: 'ai.netgroup.atlas',
           categories: ['Development'],
           icon: {
             scalable: 'src/images/icon.svg',
             '512x512': 'src/images/icon-512.png',
           },
-          homepage: 'https://goose-docs.ai/',
+          homepage: 'https://netgroup.ai/atlas',
           runtimeVersion: '25.08',
           baseVersion: '25.08',
-          bin: 'Goose',
+          bin: 'Atlas',
           modules: [
             {
               name: 'libbz2-shim',
