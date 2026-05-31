@@ -12,7 +12,7 @@ import {
   type NavItem,
 } from '../../hooks/useNavigationItems';
 import { AppEvents } from '../../constants/events';
-import { Goose } from '../icons/Goose'; // brand-allow: internal component import
+import { AtlasMark } from '../atlas-brand/AtlasMark';
 import { InlineEditText } from '../common/InlineEditText';
 import { SessionIndicators } from '../SessionIndicators';
 import { updateSessionName, type Session } from '../../api';
@@ -47,10 +47,10 @@ const i18n = defineMessages({
 
 const navItemClass = (active: boolean) =>
   cn(
-    'flex flex-row items-center gap-3 outline-none no-drag w-full',
-    'rounded-full px-3 py-2 text-sm font-medium transition-colors',
+    'flex flex-row items-center gap-3 outline-none no-drag w-full relative',
+    'rounded-lg px-3 py-2 text-sm font-medium transition-all',
     active
-      ? 'bg-background-tertiary text-text-primary'
+      ? 'bg-background-tertiary text-text-prominent'
       : 'text-text-primary hover:bg-background-tertiary/60'
   );
 
@@ -65,7 +65,18 @@ const NavRow: React.FC<NavRowProps> = ({ item, active, onClick }) => {
   const Icon = item.icon;
   return (
     <button onClick={onClick} className={navItemClass(active)}>
-      <Icon className="w-5 h-5 flex-shrink-0 text-text-secondary" />
+      {/* Brand-cobalt active rail */}
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r"
+          style={{ background: 'var(--atlas-brand-cobalt)' }}
+        />
+      )}
+      <Icon
+        className="w-4 h-4 flex-shrink-0"
+        style={{ color: active ? 'var(--atlas-brand-cobalt)' : 'var(--color-text-secondary)' }}
+      />
       <span className="text-left flex-1 truncate">{getNavItemLabel(item, intl)}</span>
       {item.getTag && (
         <span className="text-xs font-mono text-text-secondary">{item.getTag()}</span>
@@ -204,9 +215,9 @@ export const Navigation: React.FC<{ className?: string }> = ({ className }) => {
         className
       )}
     >
-      {/* Header: logo + collapse button. Top padding clears the macOS traffic lights. */}
-      <div className="flex items-center justify-between px-4 pt-[34px] pb-2 no-drag">
-        <Goose className="w-6 h-6 text-text-primary" /> {/* brand-allow: internal component */}
+      {/* Header: Atlas mark + wordmark + collapse button. Top padding clears macOS traffic lights. */}
+      <div className="flex items-center justify-between px-4 pt-[34px] pb-3 no-drag">
+        <AtlasMark size={22} withWordmark wordmarkColor="var(--atlas-brand-ink)" />
         <button
           onClick={() => setIsNavExpanded(false)}
           className="p-1.5 rounded-md hover:bg-background-tertiary transition-colors"

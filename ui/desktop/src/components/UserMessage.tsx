@@ -261,7 +261,16 @@ export default function UserMessage({ message, onMessageUpdate }: UserMessagePro
             <div className="flex-col max-w-[85%] w-fit">
               <div className="flex flex-col group">
                 {textContent.trim() && (
-                  <div className="flex bg-text-primary text-background-primary rounded-xl py-2.5 px-4">
+                  <div
+                    className="flex rounded-2xl py-2.5 px-4"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, var(--atlas-brand-cobalt-deep), var(--atlas-brand-cobalt))',
+                      color: 'var(--atlas-brand-cream)',
+                      boxShadow:
+                        '0 4px 12px -4px rgba(15, 23, 41, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                    }}
+                  >
                     <div ref={contentRef}>
                       <MarkdownContent
                         content={textContent}
