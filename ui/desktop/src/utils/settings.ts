@@ -28,6 +28,22 @@ export interface SessionSharingConfig {
   baseUrl: string;
 }
 
+/**
+ * Spec 007: per-(provider, model) pricing override.
+ * Key format: `${provider}/${model}` (case-sensitive, lower-cased provider).
+ * Prices are USD per 1M tokens (matches the catalogue convention).
+ */
+export interface PricingOverride {
+  inputPerMillion: number;
+  outputPerMillion: number;
+  /** Optional cache-hit discount as a fraction 0..1, applied to input cost. */
+  cacheHitDiscount?: number;
+  /** ISO timestamp the override was last edited; informational only. */
+  updatedAt: string;
+}
+
+export type PricingOverrides = Record<string, PricingOverride>;
+
 export interface Settings {
   // Desktop app settings
   showMenuBarIcon: boolean;
@@ -44,6 +60,7 @@ export interface Settings {
   useSystemTheme: boolean;
   responseStyle: string;
   showPricing: boolean;
+  pricingOverrides: PricingOverrides;
   sessionSharing: SessionSharingConfig;
   seenAnnouncementIds: string[];
 }
@@ -83,6 +100,7 @@ export const defaultSettings: Settings = {
   useSystemTheme: true,
   responseStyle: 'concise',
   showPricing: true,
+  pricingOverrides: {},
   sessionSharing: {
     enabled: false,
     baseUrl: '',

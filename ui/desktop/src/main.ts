@@ -202,6 +202,10 @@ function getSettings(): Settings {
         ...defaultSettings.sessionSharing,
         ...(stored.sessionSharing ?? {}),
       },
+      pricingOverrides: {
+        ...defaultSettings.pricingOverrides,
+        ...(stored.pricingOverrides ?? {}),
+      },
     };
   }
   return defaultSettings;

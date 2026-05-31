@@ -4,6 +4,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { fetchCanonicalModelInfo } from '../../utils/canonical';
 import type { ModelInfoData } from '../../api';
 import { defineMessages, useIntl } from '../../i18n';
+import { getOverrideFor, PRICING_OVERRIDES_CHANGED } from '../../utils/pricing';
+import type { PricingOverride } from '../../utils/settings';
 
 const i18n = defineMessages({
   pricingUnavailable: {
@@ -41,6 +43,7 @@ export function CostTracker({
 }: CostTrackerProps) {
   const intl = useIntl();
   const [costInfo, setCostInfo] = useState<ModelInfoData | null>(null);
+  const [override, setOverrideState] = useState<PricingOverride | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showPricing, setShowPricing] = useState(true);
   const [pricingFailed, setPricingFailed] = useState(false);
@@ -90,13 +93,38 @@ export function CostTracker({
     loadCostInfo();
   }, [currentModel, currentProvider]);
 
+  // Spec 007 — local pricing overrides take precedence over catalogue.
+  useEffect(() => {
+    let cancelled = false;
+    const refreshOverride = async () => {
+      const o = await getOverrideFor(currentProvider, currentModel);
+      if (!cancelled) setOverrideState(o);
+    };
+    refreshOverride();
+    window.addEventListener(PRICING_OVERRIDES_CHANGED, refreshOverride);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PRICING_OVERRIDES_CHANGED, refreshOverride);
+    };
+  }, [currentProvider, currentModel]);
+
+  const resolvedInputCost = override?.inputPerMillion ?? costInfo?.input_token_cost ?? 0;
+  const resolvedOutputCost = override?.outputPerMillion ?? costInfo?.output_token_cost ?? 0;
+
   // Return null early if pricing is disabled
   if (!showPricing) {
     return null;
   }
 
   const calculateCost = (): number => {
-    return accumulatedCost ?? 0;
+    if (accumulatedCost != null && !override) return accumulatedCost;
+    // When the user has a local override, recompute from per-1M rates so
+    // the displayed cost reflects the override even though the agent-side
+    // accumulatedCost is still based on catalogue prices.
+    return (
+      (inputTokens * resolvedInputCost) / 1_000_000 +
+      (outputTokens * resolvedOutputCost) / 1_000_000
+    );
   };
 
   const formatCost = (cost: number): string => cost.toFixed(2);
@@ -117,6 +145,7 @@ export function CostTracker({
 
   if (
     accumulatedCost == null &&
+    !override &&
     (!costInfo ||
       (costInfo.input_token_cost === undefined && costInfo.output_token_cost === undefined))
   ) {
@@ -166,24 +195,26 @@ export function CostTracker({
 
     const currency = costInfo?.currency || '$';
 
-    if (accumulatedCost != null) {
+    const overrideNote = override ? '\n(local pricing override active)' : '';
+
+    if (accumulatedCost != null && !override) {
       return intl.formatMessage(i18n.totalSessionCost, { cost: `${currency}${totalCost.toFixed(4)}` })
         + `\n` + intl.formatMessage(i18n.inputOutputTooltip, {
           inputTokens: inputTokens.toLocaleString(),
-          inputCost: `${currency}${((inputTokens * (costInfo?.input_token_cost || 0)) / 1_000_000).toFixed(6)}`,
+          inputCost: `${currency}${((inputTokens * resolvedInputCost) / 1_000_000).toFixed(6)}`,
           outputTokens: outputTokens.toLocaleString(),
-          outputCost: `${currency}${((outputTokens * (costInfo?.output_token_cost || 0)) / 1_000_000).toFixed(6)}`,
+          outputCost: `${currency}${((outputTokens * resolvedOutputCost) / 1_000_000).toFixed(6)}`,
         });
     }
 
-    const inputCostStr = `${currency}${((inputTokens * (costInfo?.input_token_cost || 0)) / 1_000_000).toFixed(6)}`;
-    const outputCostStr = `${currency}${((outputTokens * (costInfo?.output_token_cost || 0)) / 1_000_000).toFixed(6)}`;
+    const inputCostStr = `${currency}${((inputTokens * resolvedInputCost) / 1_000_000).toFixed(6)}`;
+    const outputCostStr = `${currency}${((outputTokens * resolvedOutputCost) / 1_000_000).toFixed(6)}`;
     return intl.formatMessage(i18n.inputOutputTooltip, {
       inputTokens: inputTokens.toLocaleString(),
       inputCost: inputCostStr,
       outputTokens: outputTokens.toLocaleString(),
       outputCost: outputCostStr,
-    });
+    }) + overrideNote;
   };
 
   return (
