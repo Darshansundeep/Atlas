@@ -89,6 +89,22 @@ interface UpdaterEvent {
   data?: unknown;
 }
 
+/**
+ * Spec 008 v0.3 — usage ledger entry. Append-only local record that
+ * survives session deletion.
+ */
+export interface UsageLedgerEntry {
+  sessionId: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cost: number | null;
+  sessionCreatedAt: string;
+  archivedAt: string;
+}
+
 export interface CreateChatWindowOptions {
   query?: string;
   dir?: string;
@@ -183,6 +199,8 @@ type ElectronAPI = {
   openDirectoryInExplorer: (directoryPath: string) => Promise<boolean>;
   openFilePath: (filePath: string) => Promise<boolean>;
   showItemInFolder: (filePath: string) => Promise<boolean>;
+  usageLedgerAppend: (entries: UsageLedgerEntry[] | UsageLedgerEntry) => Promise<boolean>;
+  usageLedgerRead: () => Promise<UsageLedgerEntry[]>;
   launchApp: (app: GooseApp) => Promise<void>;
   refreshApp: (app: GooseApp) => Promise<void>;
   closeApp: (appName: string) => Promise<void>;
@@ -342,6 +360,9 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke('open-directory-in-explorer', directoryPath),
   openFilePath: (filePath: string) => ipcRenderer.invoke('open-file-path', filePath),
   showItemInFolder: (filePath: string) => ipcRenderer.invoke('show-item-in-folder', filePath),
+  usageLedgerAppend: (entries: UsageLedgerEntry[] | UsageLedgerEntry) =>
+    ipcRenderer.invoke('atlas-usage-ledger-append', entries) as Promise<boolean>,
+  usageLedgerRead: () => ipcRenderer.invoke('atlas-usage-ledger-read') as Promise<UsageLedgerEntry[]>,
   launchApp: (app: GooseApp) => ipcRenderer.invoke('launch-app', app),
   refreshApp: (app: GooseApp) => ipcRenderer.invoke('refresh-app', app),
   closeApp: (appName: string) => ipcRenderer.invoke('close-app', appName),

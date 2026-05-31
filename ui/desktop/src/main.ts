@@ -2822,6 +2822,66 @@ async function appMain() {
     return d;
   });
 
+  // ----------------------------------------------------------------------
+  // Atlas usage ledger (Spec 008 v0.3) — append-only JSONL file that
+  // survives session deletion. The Usage page merges live sessions +
+  // ledger entries so the user's history of consumption is preserved
+  // even when they Delete All sessions.
+  // ----------------------------------------------------------------------
+
+  const USAGE_LEDGER_FILE = path.join(app.getPath('userData'), 'usage-history.jsonl');
+
+  interface UsageLedgerEntry {
+    sessionId: string;
+    provider: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    cost: number | null;
+    /** When the session was first seen (createdAt of the session). */
+    sessionCreatedAt: string;
+    /** When this snapshot was written (i.e. delete time). */
+    archivedAt: string;
+  }
+
+  ipcMain.handle(
+    'atlas-usage-ledger-append',
+    async (_event, entries: UsageLedgerEntry[] | UsageLedgerEntry): Promise<boolean> => {
+      try {
+        const arr = Array.isArray(entries) ? entries : [entries];
+        if (arr.length === 0) return true;
+        const lines = arr.map((e) => JSON.stringify(e)).join('\n') + '\n';
+        fsSync.appendFileSync(USAGE_LEDGER_FILE, lines, { mode: 0o600 });
+        return true;
+      } catch (e) {
+        console.error('[atlas-usage] append failed', e);
+        return false;
+      }
+    }
+  );
+
+  ipcMain.handle('atlas-usage-ledger-read', async (): Promise<UsageLedgerEntry[]> => {
+    try {
+      if (!fsSync.existsSync(USAGE_LEDGER_FILE)) return [];
+      const text = fsSync.readFileSync(USAGE_LEDGER_FILE, 'utf8');
+      const out: UsageLedgerEntry[] = [];
+      for (const line of text.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          out.push(JSON.parse(trimmed) as UsageLedgerEntry);
+        } catch {
+          // Skip malformed lines; never throw away the rest of the file.
+        }
+      }
+      return out;
+    } catch (e) {
+      console.error('[atlas-usage] read failed', e);
+      return [];
+    }
+  });
+
   ipcMain.handle('launch-app', async (event, gooseApp: GooseApp) => {
     try {
       const launchingWindow = BrowserWindow.fromWebContents(event.sender);

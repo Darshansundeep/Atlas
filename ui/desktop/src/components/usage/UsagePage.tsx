@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, Coins, MessageSquare, RefreshCw, Wrench } from 'lucide-react';
 import { listSessions } from '../../api';
 import type { Session } from '../../api';
+import type { UsageLedgerEntry } from '../../preload';
 import { useAuth } from '../../auth';
 import { AtlasMark } from '../atlas-brand/AtlasMark';
 import { EmptyIllustration } from '../atlas-brand/EmptyIllustration';
@@ -85,7 +86,11 @@ async function priceFor(provider: string, model: string): Promise<{ input: numbe
   };
 }
 
-async function aggregate(sessions: Session[], windowKey: WindowKey): Promise<Aggregated> {
+async function aggregate(
+  sessions: Session[],
+  ledger: UsageLedgerEntry[],
+  windowKey: WindowKey
+): Promise<Aggregated> {
   const ms = WINDOW_MS[windowKey];
   const cutoff = ms !== null ? Date.now() - ms : 0;
   const inWindow = sessions.filter((s) => {
@@ -94,12 +99,26 @@ async function aggregate(sessions: Session[], windowKey: WindowKey): Promise<Agg
     return t >= cutoff;
   });
 
-  // Resolve prices once per unique key.
+  // Dedupe ledger entries: a session that's both deleted (in ledger) AND
+  // still alive (in `sessions`) should only count once. Live wins.
+  const liveIds = new Set(inWindow.map((s) => s.id));
+  const archivedInWindow = ledger.filter((e) => {
+    if (liveIds.has(e.sessionId)) return false;
+    if (!ms) return true;
+    // Use session's createdAt for window membership — that's when usage
+    // was generated, not when the row was archived.
+    const t = new Date(e.sessionCreatedAt).getTime();
+    return t >= cutoff;
+  });
+
+  // Resolve prices once per unique key — union of live + archived keys.
   const priceCache = new Map<string, { input: number; output: number }>();
-  const keyFor = (s: Session) =>
+  const keyForSession = (s: Session) =>
     `${(s.provider_name ?? 'unknown').toLowerCase()}/${s.model_config?.model_name ?? 'unknown'}`;
+  const keyForLedger = (e: UsageLedgerEntry) => `${e.provider}/${e.model}`;
   const unique = new Set<string>();
-  for (const s of inWindow) unique.add(keyFor(s));
+  for (const s of inWindow) unique.add(keyForSession(s));
+  for (const e of archivedInWindow) unique.add(keyForLedger(e));
   await Promise.all(
     Array.from(unique).map(async (k) => {
       const [p, ...rest] = k.split('/');
@@ -178,6 +197,50 @@ async function aggregate(sessions: Session[], windowKey: WindowKey): Promise<Agg
     }
   }
 
+  // Fold in archived ledger entries (deleted sessions). No tool-call data
+  // is preserved at the ledger layer — that's a v0.4 enhancement.
+  for (const e of archivedInWindow) {
+    totalSessions++;
+    const key = `${e.provider}/${e.model}`;
+    const price = priceCache.get(key) ?? { input: 0, output: 0 };
+    // If the ledger recorded a cost we trust it; otherwise compute from prices.
+    const cost =
+      e.cost != null
+        ? e.cost
+        : (e.inputTokens * price.input + e.outputTokens * price.output) / 1_000_000;
+    totalInput += e.inputTokens;
+    totalOutput += e.outputTokens;
+    totalCost += cost;
+
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.sessions++;
+      existing.inputTokens += e.inputTokens;
+      existing.outputTokens += e.outputTokens;
+      existing.totalTokens += e.totalTokens;
+      existing.cost += cost;
+    } else {
+      grouped.set(key, {
+        provider: e.provider,
+        model: e.model,
+        sessions: 1,
+        inputTokens: e.inputTokens,
+        outputTokens: e.outputTokens,
+        totalTokens: e.totalTokens,
+        cost,
+      });
+    }
+
+    const d = new Date(e.sessionCreatedAt).toISOString().slice(0, 10);
+    const bucket = daily.get(d);
+    if (bucket) {
+      bucket.tokens += e.totalTokens;
+      bucket.cost += cost;
+    } else {
+      daily.set(d, { date: d, tokens: e.totalTokens, cost });
+    }
+  }
+
   const rows = Array.from(grouped.values()).sort((a, b) => b.totalTokens - a.totalTokens);
   const dailyArr = Array.from(daily.values()).sort((a, b) => a.date.localeCompare(b.date));
   const topTools: ToolRow[] = Array.from(tools.entries())
@@ -207,6 +270,7 @@ export default function UsagePage() {
   const { user, subscription } = useAuth();
   const [windowKey, setWindowKey] = useState<WindowKey>('week');
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [ledger, setLedger] = useState<UsageLedgerEntry[]>([]);
   const [agg, setAgg] = useState<Aggregated | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,9 +279,14 @@ export default function UsagePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listSessions({ throwOnError: true });
-      const s = (res.data?.sessions ?? []) as Session[];
+      // Pull live sessions and the local archive in parallel.
+      const [sessRes, ledgerRes] = await Promise.all([
+        listSessions({ throwOnError: true }),
+        window.electron.usageLedgerRead().catch(() => [] as UsageLedgerEntry[]),
+      ]);
+      const s = (sessRes.data?.sessions ?? []) as Session[];
       setSessions(s);
+      setLedger(ledgerRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load sessions');
     } finally {
@@ -229,11 +298,11 @@ export default function UsagePage() {
   // overrides change so the UI reflects the new prices live.
   useEffect(() => {
     let cancelled = false;
-    aggregate(sessions, windowKey).then((a) => {
+    aggregate(sessions, ledger, windowKey).then((a) => {
       if (!cancelled) setAgg(a);
     });
     const onChange = () => {
-      aggregate(sessions, windowKey).then((a) => {
+      aggregate(sessions, ledger, windowKey).then((a) => {
         if (!cancelled) setAgg(a);
       });
     };
@@ -242,7 +311,7 @@ export default function UsagePage() {
       cancelled = true;
       window.removeEventListener(PRICING_OVERRIDES_CHANGED, onChange);
     };
-  }, [sessions, windowKey]);
+  }, [sessions, ledger, windowKey]);
 
   useEffect(() => {
     void reload();
@@ -613,7 +682,13 @@ export default function UsagePage() {
           className="mt-4 text-center"
           style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)' }}
         >
-          Prices resolved from your local pricing overrides → bundled catalogue. Stored locally; nothing leaves your machine.
+          Prices resolved from your local pricing overrides → bundled catalogue.
+          {ledger.length > 0 && (
+            <>
+              {' '}Includes <strong>{ledger.length}</strong> archived session{ledger.length === 1 ? '' : 's'} — deleted sessions stay counted here.
+            </>
+          )}
+          {' '}Stored locally; nothing leaves your machine.
         </p>
       </div>
     </div>

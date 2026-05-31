@@ -19,6 +19,33 @@ import {
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { EmptyIllustration } from '../atlas-brand/EmptyIllustration';
+import type { UsageLedgerEntry } from '../../preload';
+
+/**
+ * Snapshot a session's accumulated token/cost data into the local
+ * append-only usage ledger, BEFORE the session itself is deleted.
+ * Best-effort: ledger failures never block deletion.
+ */
+async function archiveSessionToUsageLedger(session: Session): Promise<void> {
+  try {
+    const entry: UsageLedgerEntry = {
+      sessionId: session.id,
+      provider: (session.provider_name ?? 'unknown').toLowerCase(),
+      model: session.model_config?.model_name ?? 'unknown',
+      inputTokens: session.accumulated_input_tokens ?? 0,
+      outputTokens: session.accumulated_output_tokens ?? 0,
+      totalTokens:
+        session.accumulated_total_tokens ??
+        (session.accumulated_input_tokens ?? 0) + (session.accumulated_output_tokens ?? 0),
+      cost: session.accumulated_cost ?? null,
+      sessionCreatedAt: session.created_at ?? new Date().toISOString(),
+      archivedAt: new Date().toISOString(),
+    };
+    await window.electron.usageLedgerAppend(entry);
+  } catch (e) {
+    console.warn('[usage-ledger] archive failed', e);
+  }
+}
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatMessageTimestamp } from '../../utils/timeUtils';
@@ -551,6 +578,9 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       setSessionToDelete(null);
 
       try {
+        // Snapshot the session's usage to the local ledger BEFORE
+        // deleting so Usage analytics survive (Spec 008 v0.3).
+        await archiveSessionToUsageLedger(sessionToDelete);
         await deleteSession({
           path: { session_id: sessionToDeleteId },
           throwOnError: true,
@@ -580,6 +610,29 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       const total = sessions.length;
       if (total === 0) return;
       setDeletingAll({ done: 0, total });
+
+      // Spec 008 v0.3 — archive ALL sessions to the usage ledger BEFORE
+      // touching any of them. One bulk append is faster than per-session
+      // and means even a mid-loop crash preserves the full history.
+      try {
+        const entries: UsageLedgerEntry[] = sessions.map((s) => ({
+          sessionId: s.id,
+          provider: (s.provider_name ?? 'unknown').toLowerCase(),
+          model: s.model_config?.model_name ?? 'unknown',
+          inputTokens: s.accumulated_input_tokens ?? 0,
+          outputTokens: s.accumulated_output_tokens ?? 0,
+          totalTokens:
+            s.accumulated_total_tokens ??
+            (s.accumulated_input_tokens ?? 0) + (s.accumulated_output_tokens ?? 0),
+          cost: s.accumulated_cost ?? null,
+          sessionCreatedAt: s.created_at ?? new Date().toISOString(),
+          archivedAt: new Date().toISOString(),
+        }));
+        await window.electron.usageLedgerAppend(entries);
+      } catch (e) {
+        console.warn('[usage-ledger] bulk archive failed; continuing with delete', e);
+      }
+
       let succeeded = 0;
       // Serial — deletion is fast and we want progress reporting.
       for (let i = 0; i < sessions.length; i++) {
