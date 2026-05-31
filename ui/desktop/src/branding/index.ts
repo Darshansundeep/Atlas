@@ -46,6 +46,7 @@ export const FEATURES = {
   // Inline UX — on by default at v1
   inlineFilePaths: true,            // detect /Users/... etc. in messages, render as clickable chips
   toolCallProgress: true,           // elapsed-time + staged cancel/diagnose on the loading indicator
+  usagePage: true,                  // Spec 008 — Usage Analytics tab (tokens / cost / models)
 
   // Settings tabs / sub-sections — hidden at v1, release per future update
   meshTab: false,                   // "Mesh" tab (Inference Mesh / distributed LLM)

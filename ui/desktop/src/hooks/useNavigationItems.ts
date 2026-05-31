@@ -1,5 +1,6 @@
 import {
   AppWindow,
+  BarChart3,
   Clock,
   FileText,
   History,
@@ -36,6 +37,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'scheduler', path: '/schedules', label: 'Scheduler', icon: Clock },
   { id: 'extensions', path: '/extensions', label: 'Extensions', icon: Puzzle },
   { id: 'sessions', path: '/sessions', label: 'Session History', icon: History },
+  { id: 'usage', path: '/usage', label: 'Usage', icon: BarChart3 },
 ];
 
 const FEATURE_BY_NAV_ID: Record<string, keyof typeof FEATURES> = {
@@ -46,6 +48,7 @@ const FEATURE_BY_NAV_ID: Record<string, keyof typeof FEATURES> = {
   scheduler: 'scheduler',
   extensions: 'extensions',
   sessions: 'sessionHistory',
+  usage: 'usagePage',
 };
 
 export const NAV_ITEMS: NavItem[] = ALL_NAV_ITEMS.filter((item) => {
@@ -91,6 +94,10 @@ const navItemMessages = defineMessages({
   sessions: {
     id: 'navigation.itemSessions',
     defaultMessage: 'Session History',
+  },
+  usage: {
+    id: 'navigation.itemUsage',
+    defaultMessage: 'Usage',
   },
   settings: {
     id: 'navigation.itemSettings',

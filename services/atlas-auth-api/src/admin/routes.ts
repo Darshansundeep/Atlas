@@ -14,12 +14,15 @@ import { Hono, type MiddlewareHandler } from 'hono';
 import { getPool } from '../db/index.js';
 import { adminHtml } from './page.js';
 import {
+  deleteCatalogue,
   getStats,
   listActiveSessions,
   listAuditEvents,
+  listCatalogue,
   listUsers,
   revokeAllForUserAdmin,
   setUserTier,
+  upsertCatalogue,
 } from './queries.js';
 import { emit as auditEmit } from '../audit.js';
 
@@ -78,6 +81,39 @@ export function mountAdmin(app: any, env: AdminEnv): void {
       return c.json({ error: 'invalid_tier' }, 400);
     }
     await setUserTier(pool, id, tier);
+    return c.json({ ok: true });
+  });
+
+  // Spec 011 — model catalogue endpoints
+  admin.get('/v1/catalogue', async (c) => c.json(await listCatalogue(pool)));
+
+  admin.post('/v1/catalogue', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body || typeof body.provider !== 'string' || typeof body.model !== 'string') {
+      return c.json({ error: 'invalid_request', detail: 'provider + model required' }, 400);
+    }
+    const i = body.input_per_million as number | undefined;
+    const o = body.output_per_million as number | undefined;
+    if ((i !== undefined && (typeof i !== 'number' || i < 0 || i > 1000)) ||
+        (o !== undefined && (typeof o !== 'number' || o < 0 || o > 1000))) {
+      return c.json({ error: 'invalid_price' }, 400);
+    }
+    await upsertCatalogue(pool, {
+      provider: body.provider,
+      model: body.model,
+      display_name: (body.display_name as string | null | undefined) ?? null,
+      input_per_million: i,
+      output_per_million: o,
+      context_window: (body.context_window as number | null | undefined) ?? null,
+      capabilities: Array.isArray(body.capabilities) ? (body.capabilities as string[]) : undefined,
+      deprecated: typeof body.deprecated === 'boolean' ? body.deprecated : undefined,
+      notes: (body.notes as string | null | undefined) ?? null,
+    });
+    return c.json({ ok: true });
+  });
+
+  admin.delete('/v1/catalogue/:provider/:model', async (c) => {
+    await deleteCatalogue(pool, c.req.param('provider'), c.req.param('model'));
     return c.json({ ok: true });
   });
 

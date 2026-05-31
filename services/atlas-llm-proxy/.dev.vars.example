@@ -1,0 +1,22 @@
+# Atlas LLM proxy — local dev config.
+
+# Same Postgres as atlas-auth-api (shares users / subscription_state /
+# audit_events tables, adds usage_events).
+DATABASE_URL=postgres://postgres:devpass@127.0.0.1:5432/atlas_auth
+
+# Same secret as atlas-auth-api so JWTs verify here.
+JWT_SIGNING_SECRET=devsecret-replace-in-prod-aaaaaaaaaaaaaaaaaaa
+
+# Upstream provider keys — server-side only; never leave this process.
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GOOGLE_API_KEY=
+
+# Port the proxy binds to.
+PORT=8788
+
+# Hard cap (USD per user per day) — proxy refuses to forward when exceeded.
+DAILY_USD_CAP_FREE=2.00
+DAILY_USD_CAP_PRO=50.00
+DAILY_USD_CAP_TEAM=200.00
+DAILY_USD_CAP_ENTERPRISE=1000.00

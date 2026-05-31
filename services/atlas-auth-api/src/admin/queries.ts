@@ -157,3 +157,78 @@ export async function setUserTier(
     [userId, tier]
   );
 }
+
+// ----- Spec 011: model catalogue ----------------------------------------
+
+export interface CatalogueRow {
+  provider: string;
+  model: string;
+  display_name: string | null;
+  input_per_million: string;   // numeric → string via pg
+  output_per_million: string;
+  context_window: number | null;
+  capabilities: string[];
+  currency: string;
+  deprecated: boolean;
+  notes: string | null;
+  updated_at: string;
+}
+
+export async function listCatalogue(pool: pg.Pool): Promise<CatalogueRow[]> {
+  const { rows } = await pool.query<CatalogueRow>(
+    `SELECT provider, model, display_name,
+            input_per_million::text, output_per_million::text,
+            context_window, capabilities, currency, deprecated, notes, updated_at
+       FROM model_catalogue
+       ORDER BY deprecated ASC, provider ASC, model ASC`
+  );
+  return rows;
+}
+
+export interface CatalogueUpsert {
+  provider: string;
+  model: string;
+  display_name?: string | null;
+  input_per_million?: number;
+  output_per_million?: number;
+  context_window?: number | null;
+  capabilities?: string[];
+  deprecated?: boolean;
+  notes?: string | null;
+}
+
+export async function upsertCatalogue(pool: pg.Pool, row: CatalogueUpsert): Promise<void> {
+  await pool.query(
+    `INSERT INTO model_catalogue
+       (provider, model, display_name, input_per_million, output_per_million,
+        context_window, capabilities, deprecated, notes, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9, NOW())
+     ON CONFLICT (provider, model) DO UPDATE SET
+       display_name       = COALESCE(EXCLUDED.display_name, model_catalogue.display_name),
+       input_per_million  = COALESCE(EXCLUDED.input_per_million, model_catalogue.input_per_million),
+       output_per_million = COALESCE(EXCLUDED.output_per_million, model_catalogue.output_per_million),
+       context_window     = COALESCE(EXCLUDED.context_window, model_catalogue.context_window),
+       capabilities       = COALESCE(EXCLUDED.capabilities, model_catalogue.capabilities),
+       deprecated         = COALESCE(EXCLUDED.deprecated, model_catalogue.deprecated),
+       notes              = COALESCE(EXCLUDED.notes, model_catalogue.notes),
+       updated_at         = NOW()`,
+    [
+      row.provider.toLowerCase(),
+      row.model,
+      row.display_name ?? null,
+      row.input_per_million ?? 0,
+      row.output_per_million ?? 0,
+      row.context_window ?? null,
+      JSON.stringify(row.capabilities ?? []),
+      row.deprecated ?? false,
+      row.notes ?? null,
+    ]
+  );
+}
+
+export async function deleteCatalogue(pool: pg.Pool, provider: string, model: string): Promise<void> {
+  await pool.query(
+    `DELETE FROM model_catalogue WHERE provider = $1 AND model = $2`,
+    [provider.toLowerCase(), model]
+  );
+}

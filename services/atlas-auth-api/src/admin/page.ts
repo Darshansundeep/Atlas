@@ -326,7 +326,7 @@ export function adminHtml(): string {
       <button data-page="people">People</button>
       <button data-page="sessions">Sessions</button>
       <button data-page="audit">Audit</button>
-      <button data-page="models" class="coming-soon">Models</button>
+      <button data-page="models">Models</button>
       <button data-page="skills" class="coming-soon">Skills</button>
     </nav>
 
@@ -373,9 +373,50 @@ export function adminHtml(): string {
       </section>
 
       <section class="page" id="page-models">
-        <div class="coming-soon-card">
-          <h3>Models — coming with spec 011</h3>
-          <p>A central model catalogue + per-org price overrides will live here. For now, model pricing is per-user (Settings → Models → Pricing Overrides in the desktop app).</p>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Model catalogue</h2>
+            <span class="hint">canonical (provider, model) pricing — USD per 1M tokens</span>
+          </div>
+          <div id="catalogue-table"></div>
+        </div>
+
+        <div class="panel" style="margin-top: 18px;">
+          <div class="panel-header">
+            <h2>Add or update a model</h2>
+            <span class="hint">upsert by (provider, model)</span>
+          </div>
+          <form id="catalogue-form" style="padding: 0 16px 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Provider
+              <input name="provider" required placeholder="anthropic" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Model
+              <input name="model" required placeholder="claude-sonnet-4-6" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;font-family:'JetBrains Mono',monospace;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Display name
+              <input name="display_name" placeholder="(optional)" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Input / 1M
+              <input name="input_per_million" type="number" min="0" step="0.01" placeholder="3.00" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Output / 1M
+              <input name="output_per_million" type="number" min="0" step="0.01" placeholder="15.00" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Context
+              <input name="context_window" type="number" min="0" placeholder="200000" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <div style="grid-column: 1 / -1;">
+              <button type="submit" style="background:linear-gradient(135deg,#0f1729,#1e2a55);color:#fafaf7;border:0;padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Save model
+              </button>
+            </div>
+          </form>
         </div>
       </section>
 
@@ -565,9 +606,35 @@ export function adminHtml(): string {
     document.getElementById('recent-audit').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
   }
 
+  async function loadCatalogue() {
+    const cat = await api('/admin/v1/catalogue');
+    if (cat.length === 0) {
+      document.getElementById('catalogue-table').innerHTML = '<div class="empty">No models in catalogue.</div>';
+      return;
+    }
+    const head = '<thead><tr>' +
+      '<th>Provider</th><th>Model</th><th>Display</th>' +
+      '<th style="text-align:right">Input / 1M</th><th style="text-align:right">Output / 1M</th>' +
+      '<th style="text-align:right">Context</th><th>Updated</th><th></th>' +
+      '</tr></thead>';
+    const rows = cat.map(m =>
+      '<tr' + (m.deprecated ? ' style="opacity:.5"' : '') + '>' +
+        '<td>' + escape(m.provider) + '</td>' +
+        '<td class="mono">' + escape(m.model) + '</td>' +
+        '<td>' + escape(m.display_name ?? '') + '</td>' +
+        '<td style="text-align:right" class="mono">$' + Number(m.input_per_million).toFixed(2) + '</td>' +
+        '<td style="text-align:right" class="mono">$' + Number(m.output_per_million).toFixed(2) + '</td>' +
+        '<td style="text-align:right" class="mono">' + (m.context_window ? m.context_window.toLocaleString() : '—') + '</td>' +
+        '<td>' + fmtDate(m.updated_at) + '</td>' +
+        '<td><button class="action danger" data-act="del-catalogue" data-provider="' + escape(m.provider) + '" data-model="' + escape(m.model) + '">Delete</button></td>' +
+      '</tr>'
+    ).join('');
+    document.getElementById('catalogue-table').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
+  }
+
   async function loadAll() {
     try {
-      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit()]);
+      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue()]);
     } catch (e) {
       if (e.status === 401) {
         sessionStorage.removeItem('atlas_admin_token');
@@ -592,6 +659,44 @@ export function adminHtml(): string {
       } catch (err) {
         toast('Revoke failed: ' + err.message, true);
       }
+    }
+    if (btn && btn.dataset.act === 'del-catalogue') {
+      const p = btn.dataset.provider;
+      const m = btn.dataset.model;
+      if (!confirm('Delete ' + p + '/' + m + ' from the catalogue?')) return;
+      try {
+        await api('/admin/v1/catalogue/' + encodeURIComponent(p) + '/' + encodeURIComponent(m), { method: 'DELETE' });
+        toast('Deleted ' + p + '/' + m);
+        await loadCatalogue();
+      } catch (err) {
+        toast('Delete failed: ' + err.message, true);
+      }
+    }
+  });
+
+  // Catalogue add/update form
+  document.getElementById('catalogue-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const payload = {
+      provider: f.get('provider'),
+      model: f.get('model'),
+      display_name: f.get('display_name') || null,
+      input_per_million: f.get('input_per_million') ? Number(f.get('input_per_million')) : undefined,
+      output_per_million: f.get('output_per_million') ? Number(f.get('output_per_million')) : undefined,
+      context_window: f.get('context_window') ? Number(f.get('context_window')) : null,
+    };
+    try {
+      await api('/admin/v1/catalogue', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      toast('Saved ' + payload.provider + '/' + payload.model);
+      e.target.reset();
+      await loadCatalogue();
+    } catch (err) {
+      toast('Save failed: ' + err.message, true);
     }
   });
 

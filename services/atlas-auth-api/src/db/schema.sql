@@ -48,3 +48,42 @@ CREATE TABLE IF NOT EXISTS subscription_state (
   entitlements         JSONB NOT NULL DEFAULT '[]',
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Spec 003 — LLM proxy usage events. One row per forwarded call.
+CREATE TABLE IF NOT EXISTS usage_events (
+  id                   UUID PRIMARY KEY,
+  user_id              UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider             TEXT NOT NULL,
+  model                TEXT NOT NULL,
+  input_tokens         INTEGER NOT NULL DEFAULT 0,
+  output_tokens        INTEGER NOT NULL DEFAULT 0,
+  cost_usd             NUMERIC(10, 6) NOT NULL DEFAULT 0,
+  request_id           TEXT,
+  status               TEXT NOT NULL,        -- ok | quota_exceeded | provider_error
+  occurred_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS usage_events_user_recent_idx
+  ON usage_events(user_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS usage_events_user_day_idx
+  ON usage_events(user_id, occurred_at);
+
+-- Spec 011 — Central model catalogue.
+-- Source-of-truth for (provider, model) pricing + capabilities. The
+-- desktop catalogue ships bundled for offline use; this table is the
+-- canonical source for the admin panel and the cloud proxy (spec 003).
+-- Org overrides will layer on top once orgs exist (spec 021).
+CREATE TABLE IF NOT EXISTS model_catalogue (
+  provider              TEXT NOT NULL,
+  model                 TEXT NOT NULL,
+  display_name          TEXT,
+  input_per_million     NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  output_per_million    NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  context_window        INTEGER,
+  capabilities          JSONB NOT NULL DEFAULT '[]',
+  currency              TEXT NOT NULL DEFAULT 'USD',
+  deprecated            BOOLEAN NOT NULL DEFAULT FALSE,
+  notes                 TEXT,
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (provider, model)
+);
+CREATE INDEX IF NOT EXISTS model_catalogue_provider_idx ON model_catalogue(provider);

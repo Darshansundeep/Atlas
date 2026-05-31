@@ -41,4 +41,7 @@ export async function migrate(databaseUrl: string): Promise<void> {
   const here = dirname(fileURLToPath(import.meta.url));
   const sql = readFileSync(join(here, 'schema.sql'), 'utf8');
   await query(databaseUrl, sql);
+  // Seed the model catalogue (idempotent — ON CONFLICT updates).
+  const seed = readFileSync(join(here, 'seed-catalogue.sql'), 'utf8');
+  await query(databaseUrl, seed);
 }
