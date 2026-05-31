@@ -13,6 +13,8 @@
 ### Session 2026-05-31
 
 - Q: Which auth provider should Atlas use? → A: **WorkOS** (same provider Cursor uses; free SSO at Atlas's scale; B2B-native maps to roadmap specs 021/022/024; OIDC-compliant so backend swap remains possible).
+- Q: How often should the desktop refresh subscription-tier state? → A: **Every 5 minutes (polling)** — confirms SC-008's existing cadence; cheap server load, invisibly fresh UX, no persistent-connection infrastructure required.
+- Q: What's the fallback when `atlas://` deep link is blocked (corporate firewall, locked-down VM)? → A: **Paste-the-code (device-code flow) PRIMARY, localhost loopback PARALLEL.** Browser shows a short code AND attempts an HTTP POST to `http://127.0.0.1:<random-port>` where Atlas listens. Whichever path succeeds first completes the sign-in. Covers 100% of network environments; loopback transparent in normal use, paste-code visible only when both atlas:// and loopback fail.
 
 ## User Scenarios & Testing *(mandatory)*
 

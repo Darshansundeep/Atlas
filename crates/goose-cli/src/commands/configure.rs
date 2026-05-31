@@ -1787,7 +1787,7 @@ pub async fn handle_openrouter_auth() -> anyhow::Result<()> {
                 .complete(
                     &provider_model_config,
                     "",
-                    "You are goose, an AI assistant.",
+                    "You are Atlas, an AI assistant.", // brand-allow: LLM system prompt
                     &[Message::user().with_text("Say 'Configuration test successful!'")],
                     &[],
                 )
