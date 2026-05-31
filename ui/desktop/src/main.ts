@@ -2641,6 +2641,34 @@ async function appMain() {
     }
   });
 
+  // Spec 006 — clickable file-path chips. Open file in the OS default app.
+  ipcMain.handle('open-file-path', async (_event, filePath: string) => {
+    try {
+      if (typeof filePath !== 'string' || filePath.length === 0) return false;
+      const errMsg = await shell.openPath(filePath);
+      if (errMsg) {
+        console.warn('shell.openPath returned:', errMsg);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error opening file path:', error);
+      return false;
+    }
+  });
+
+  // Spec 006 — reveal file in Finder / Explorer.
+  ipcMain.handle('show-item-in-folder', async (_event, filePath: string) => {
+    try {
+      if (typeof filePath !== 'string' || filePath.length === 0) return false;
+      shell.showItemInFolder(filePath);
+      return true;
+    } catch (error) {
+      console.error('Error revealing item in folder:', error);
+      return false;
+    }
+  });
+
   ipcMain.handle('launch-app', async (event, gooseApp: GooseApp) => {
     try {
       const launchingWindow = BrowserWindow.fromWebContents(event.sender);

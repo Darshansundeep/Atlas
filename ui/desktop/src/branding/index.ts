@@ -43,6 +43,9 @@ export const FEATURES = {
   contextWindowIndicator: false,    // the 0↑/0↓ + 0/128k token counter
   extensionCountBadge: false,       // the puzzle-piece "15" badge in the input footer
 
+  // Inline UX — on by default at v1
+  inlineFilePaths: true,            // detect /Users/... etc. in messages, render as clickable chips
+
   // Settings tabs / sub-sections — hidden at v1, release per future update
   meshTab: false,                   // "Mesh" tab (Inference Mesh / distributed LLM)
   systemPromptsTab: false,          // "Prompts" tab — admin-managed in future, not user-facing

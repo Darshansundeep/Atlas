@@ -31,6 +31,9 @@ import { wrapHTMLInCodeBlock } from '../utils/htmlSecurity';
 import { isProtocolSafe, getProtocol, BLOCKED_PROTOCOLS } from '../utils/urlSecurity';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { defineMessages, useIntl } from '../i18n';
+import { FEATURES } from '../branding';
+import { remarkFilePaths, decodeAtlasFilePath } from '../utils/remarkFilePaths';
+import { FilePathChip } from './FilePathChip';
 
 const i18n = defineMessages({
   copyCode: {
@@ -186,6 +189,8 @@ const MarkdownCode = memo(
 // React-markdown's default only allows http/https/mailto and strips all other protocols
 // We allow all protocols except dangerous ones (javascript:, data:, file:, etc.)
 const customUrlTransform = (url: string): string => {
+  // Atlas-internal scheme used by remarkFilePaths to mark detected file paths.
+  if (url.startsWith('atlas-file://')) return url;
   try {
     const protocol = new URL(url).protocol;
     if (BLOCKED_PROTOCOLS.includes(protocol)) {
@@ -258,7 +263,12 @@ const MarkdownContent = memo(function MarkdownContent({
       >
         <ReactMarkdown
           urlTransform={customUrlTransform}
-          remarkPlugins={[remarkGfm, remarkBreaks, [remarkMath, { singleDollarTextMath: false }]]}
+          remarkPlugins={[
+            remarkGfm,
+            remarkBreaks,
+            [remarkMath, { singleDollarTextMath: false }],
+            ...(FEATURES.inlineFilePaths ? [remarkFilePaths] : []),
+          ]}
           rehypePlugins={[
             [
               rehypeKatex,
@@ -271,6 +281,13 @@ const MarkdownContent = memo(function MarkdownContent({
           ]}
           components={{
             a: (props) => {
+              // File-path chips (spec 006) — intercept atlas-file:// links.
+              if (props.href?.startsWith('atlas-file://')) {
+                const decoded = decodeAtlasFilePath(props.href);
+                if (decoded) {
+                  return <FilePathChip path={decoded} />;
+                }
+              }
               return (
                 <a
                   {...props}
