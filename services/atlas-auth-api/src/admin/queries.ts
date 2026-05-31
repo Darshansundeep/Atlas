@@ -232,3 +232,89 @@ export async function deleteCatalogue(pool: pg.Pool, provider: string, model: st
     [provider.toLowerCase(), model]
   );
 }
+
+// ----- Spec 022 v0.1: skills catalogue ----------------------------------
+
+export interface SkillRow {
+  skill_id: string;
+  version: string;
+  title: string;
+  description: string;
+  category: string;
+  publisher_name: string;
+  publisher_verified: boolean;
+  kind: 'extension' | 'recipe' | 'composite';
+  manifest: Record<string, unknown>;
+  capabilities: string[];
+  pricing_tier_min: 'free' | 'pro' | 'team' | 'enterprise';
+  deprecated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listSkills(pool: pg.Pool): Promise<SkillRow[]> {
+  const { rows } = await pool.query<SkillRow>(
+    `SELECT skill_id, version, title, description, category,
+            publisher_name, publisher_verified, kind, manifest,
+            capabilities, pricing_tier_min, deprecated, created_at, updated_at
+       FROM skills_catalogue
+       ORDER BY deprecated ASC, publisher_verified DESC, title ASC`
+  );
+  return rows;
+}
+
+export interface SkillUpsert {
+  skill_id: string;
+  version: string;
+  title: string;
+  description: string;
+  category?: string;
+  publisher_name: string;
+  publisher_verified?: boolean;
+  kind: 'extension' | 'recipe' | 'composite';
+  manifest: Record<string, unknown>;
+  capabilities?: string[];
+  pricing_tier_min?: 'free' | 'pro' | 'team' | 'enterprise';
+  deprecated?: boolean;
+}
+
+export async function upsertSkill(pool: pg.Pool, s: SkillUpsert): Promise<void> {
+  await pool.query(
+    `INSERT INTO skills_catalogue
+       (skill_id, version, title, description, category, publisher_name,
+        publisher_verified, kind, manifest, capabilities, pricing_tier_min,
+        deprecated, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,NOW())
+     ON CONFLICT (skill_id) DO UPDATE SET
+       version            = EXCLUDED.version,
+       title              = EXCLUDED.title,
+       description        = EXCLUDED.description,
+       category           = EXCLUDED.category,
+       publisher_name     = EXCLUDED.publisher_name,
+       publisher_verified = EXCLUDED.publisher_verified,
+       kind               = EXCLUDED.kind,
+       manifest           = EXCLUDED.manifest,
+       capabilities       = EXCLUDED.capabilities,
+       pricing_tier_min   = EXCLUDED.pricing_tier_min,
+       deprecated         = EXCLUDED.deprecated,
+       updated_at         = NOW()`,
+    [
+      s.skill_id,
+      s.version,
+      s.title,
+      s.description,
+      s.category ?? 'general',
+      s.publisher_name,
+      s.publisher_verified ?? false,
+      s.kind,
+      JSON.stringify(s.manifest),
+      JSON.stringify(s.capabilities ?? []),
+      s.pricing_tier_min ?? 'free',
+      s.deprecated ?? false,
+    ]
+  );
+}
+
+export async function deleteSkill(pool: pg.Pool, skillId: string): Promise<void> {
+  await pool.query(`DELETE FROM skills_catalogue WHERE skill_id = $1`, [skillId]);
+}

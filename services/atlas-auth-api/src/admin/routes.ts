@@ -15,14 +15,17 @@ import { getPool } from '../db/index.js';
 import { adminHtml } from './page.js';
 import {
   deleteCatalogue,
+  deleteSkill,
   getStats,
   listActiveSessions,
   listAuditEvents,
   listCatalogue,
+  listSkills,
   listUsers,
   revokeAllForUserAdmin,
   setUserTier,
   upsertCatalogue,
+  upsertSkill,
 } from './queries.js';
 import { emit as auditEmit } from '../audit.js';
 
@@ -114,6 +117,43 @@ export function mountAdmin(app: any, env: AdminEnv): void {
 
   admin.delete('/v1/catalogue/:provider/:model', async (c) => {
     await deleteCatalogue(pool, c.req.param('provider'), c.req.param('model'));
+    return c.json({ ok: true });
+  });
+
+  // Spec 022 v0.1 — skills catalogue (admin manages)
+  admin.get('/v1/skills', async (c) => c.json(await listSkills(pool)));
+
+  admin.post('/v1/skills', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body || typeof body.skill_id !== 'string' || typeof body.title !== 'string') {
+      return c.json({ error: 'invalid_request', detail: 'skill_id + title required' }, 400);
+    }
+    const kind = body.kind;
+    if (kind !== 'extension' && kind !== 'recipe' && kind !== 'composite') {
+      return c.json({ error: 'invalid_kind', detail: 'kind must be extension|recipe|composite' }, 400);
+    }
+    await upsertSkill(pool, {
+      skill_id: body.skill_id,
+      version: (body.version as string) ?? '0.1.0',
+      title: body.title,
+      description: (body.description as string) ?? '',
+      category: (body.category as string) ?? 'general',
+      publisher_name: (body.publisher_name as string) ?? 'Unknown',
+      publisher_verified: typeof body.publisher_verified === 'boolean' ? body.publisher_verified : false,
+      kind,
+      manifest: (body.manifest as Record<string, unknown>) ?? {},
+      capabilities: Array.isArray(body.capabilities) ? (body.capabilities as string[]) : [],
+      pricing_tier_min:
+        body.pricing_tier_min === 'pro' || body.pricing_tier_min === 'team' || body.pricing_tier_min === 'enterprise'
+          ? body.pricing_tier_min
+          : 'free',
+      deprecated: typeof body.deprecated === 'boolean' ? body.deprecated : false,
+    });
+    return c.json({ ok: true });
+  });
+
+  admin.delete('/v1/skills/:id', async (c) => {
+    await deleteSkill(pool, c.req.param('id'));
     return c.json({ ok: true });
   });
 

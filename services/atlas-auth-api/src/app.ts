@@ -26,6 +26,7 @@ import { pickIdp } from './idp/index.js';
 import { emit as auditEmit } from './audit.js';
 import { stubAuthStartHtml } from './stub-page.js';
 import { mountAdmin } from './admin/routes.js';
+import { listSkills } from './admin/queries.js';
 import {
   entitlementsFor,
   getSubscription,
@@ -290,6 +291,30 @@ export function createApp(env: Env) {
       entitlements: sub?.entitlements?.length ? sub.entitlements : entitlementsFor(tier),
       device_install_id: claims.device_install_id,
     });
+  });
+
+  // Spec 022 v0.1 — public skill catalogue listing. The desktop reads
+  // this to populate its Skills tab. No Bearer required for read-only
+  // browse (matches how an app store's catalogue is public).
+  // Cache 60s — catalogue changes are infrequent.
+  app.get('/v1/skills', async (c) => {
+    const skills = await listSkills(pool);
+    c.header('Cache-Control', 'public, max-age=60');
+    return c.json(
+      skills.filter((s) => !s.deprecated).map((s) => ({
+        skill_id: s.skill_id,
+        version: s.version,
+        title: s.title,
+        description: s.description,
+        category: s.category,
+        publisher: { name: s.publisher_name, verified: s.publisher_verified },
+        kind: s.kind,
+        capabilities: s.capabilities,
+        pricing_tier_min: s.pricing_tier_min,
+        manifest: s.manifest,
+        updated_at: s.updated_at,
+      }))
+    );
   });
 
   app.get('/v1/subscription', requireAccess, async (c) => {

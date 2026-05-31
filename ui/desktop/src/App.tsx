@@ -44,7 +44,9 @@ import PermissionSettingsView from './components/settings/permission/PermissionS
 
 import ExtensionsView, { ExtensionsViewOptions } from './components/extensions/ExtensionsView';
 import RecipesView from './components/recipes/RecipesView';
-import SkillsView from './components/skills/SkillsView';
+// Upstream SkillsView (loads SKILL.md from disk) is preserved but the
+// default Atlas route below now renders the cloud-catalogue browser.
+import AtlasSkillsView from './components/skills/AtlasSkillsView';
 import UsagePage from './components/usage/UsagePage';
 import OnboardingTour from './components/onboarding/OnboardingTour';
 import AppsView from './components/apps/AppsView';
@@ -212,7 +214,7 @@ const RecipesRoute = () => {
 };
 
 const SkillsRoute = () => {
-  return <SkillsView />;
+  return <AtlasSkillsView />;
 };
 
 const UsageRoute = () => {

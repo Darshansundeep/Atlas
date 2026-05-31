@@ -65,6 +65,8 @@ export interface Settings {
   seenAnnouncementIds: string[];
   /** Spec 023/Item 11 — true once the onboarding tour has been completed or skipped. */
   tourCompleted: boolean;
+  /** Spec 022 v0.1 — locally installed skill IDs (cloud catalogue). */
+  installedSkillIds: string[];
 }
 
 export type SettingKey = keyof Settings;
@@ -104,6 +106,7 @@ export const defaultSettings: Settings = {
   showPricing: true,
   pricingOverrides: {},
   tourCompleted: false,
+  installedSkillIds: [],
   sessionSharing: {
     enabled: false,
     baseUrl: '',

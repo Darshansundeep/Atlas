@@ -327,7 +327,7 @@ export function adminHtml(): string {
       <button data-page="sessions">Sessions</button>
       <button data-page="audit">Audit</button>
       <button data-page="models">Models</button>
-      <button data-page="skills" class="coming-soon">Skills</button>
+      <button data-page="skills">Skills</button>
     </nav>
 
     <main>
@@ -421,9 +421,71 @@ export function adminHtml(): string {
       </section>
 
       <section class="page" id="page-skills">
-        <div class="coming-soon-card">
-          <h3>Skills — coming with spec 022</h3>
-          <p>Skill marketplace governance + per-org enablement will live here. The skill platform is on the enterprise-tier roadmap.</p>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Skills catalogue</h2>
+            <span class="hint">spec 022 v0.1 — manifests, no signing yet</span>
+          </div>
+          <div id="skills-table"></div>
+        </div>
+
+        <div class="panel" style="margin-top: 18px;">
+          <div class="panel-header">
+            <h2>Publish or update a skill</h2>
+            <span class="hint">upsert by skill_id</span>
+          </div>
+          <form id="skills-form" style="padding: 0 16px 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Skill ID (reverse-DNS)
+              <input name="skill_id" required placeholder="ai.netgroup.atlas.example" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Version
+              <input name="version" placeholder="1.0.0" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Kind
+              <select name="kind" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;">
+                <option value="extension">Extension (MCP)</option>
+                <option value="recipe">Recipe</option>
+                <option value="composite" selected>Composite</option>
+              </select>
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Title
+              <input name="title" required placeholder="Web Research" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Description
+              <textarea name="description" rows="2" placeholder="One-sentence pitch shown in the marketplace." style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;resize:vertical;"></textarea>
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Category
+              <input name="category" placeholder="general" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Publisher
+              <input name="publisher_name" placeholder="NET Group" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Tier min
+              <select name="pricing_tier_min" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;">
+                <option value="free" selected>Free</option>
+                <option value="pro">Pro</option>
+                <option value="team">Team</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Manifest (JSON — extensions, recipe, capabilities)
+              <textarea name="manifest" rows="4" placeholder='{"extensions":[],"capabilities":{}}' style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px;resize:vertical;">{}</textarea>
+            </label>
+            <div style="grid-column: 1 / -1;">
+              <button type="submit" style="background:linear-gradient(135deg,#0f1729,#1e2a55);color:#fafaf7;border:0;padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Publish skill
+              </button>
+            </div>
+          </form>
         </div>
       </section>
     </main>
@@ -632,9 +694,36 @@ export function adminHtml(): string {
     document.getElementById('catalogue-table').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
   }
 
+  async function loadSkills() {
+    const skills = await api('/admin/v1/skills');
+    if (skills.length === 0) {
+      document.getElementById('skills-table').innerHTML = '<div class="empty">No skills published yet.</div>';
+      return;
+    }
+    const head = '<thead><tr>' +
+      '<th>Skill ID</th><th>Title</th><th>Kind</th><th>Publisher</th>' +
+      '<th>Tier</th><th>Version</th><th>Updated</th><th></th>' +
+      '</tr></thead>';
+    const rows = skills.map(s =>
+      '<tr' + (s.deprecated ? ' style="opacity:.5"' : '') + '>' +
+        '<td class="mono">' + escape(s.skill_id) + '</td>' +
+        '<td>' + escape(s.title) + '</td>' +
+        '<td><span class="pill">' + escape(s.kind) + '</span></td>' +
+        '<td>' + escape(s.publisher_name) +
+          (s.publisher_verified ? ' <span class="pill success" style="margin-left:4px">verified</span>' : '') +
+          '</td>' +
+        '<td>' + tierPill(s.pricing_tier_min) + '</td>' +
+        '<td class="mono">' + escape(s.version) + '</td>' +
+        '<td>' + fmtDate(s.updated_at) + '</td>' +
+        '<td><button class="action danger" data-act="del-skill" data-id="' + escape(s.skill_id) + '">Delete</button></td>' +
+      '</tr>'
+    ).join('');
+    document.getElementById('skills-table').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
+  }
+
   async function loadAll() {
     try {
-      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue()]);
+      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills()]);
     } catch (e) {
       if (e.status === 401) {
         sessionStorage.removeItem('atlas_admin_token');
@@ -660,6 +749,17 @@ export function adminHtml(): string {
         toast('Revoke failed: ' + err.message, true);
       }
     }
+    if (btn && btn.dataset.act === 'del-skill') {
+      const id = btn.dataset.id;
+      if (!confirm('Delete skill ' + id + '?')) return;
+      try {
+        await api('/admin/v1/skills/' + encodeURIComponent(id), { method: 'DELETE' });
+        toast('Deleted ' + id);
+        await loadSkills();
+      } catch (err) {
+        toast('Delete failed: ' + err.message, true);
+      }
+    }
     if (btn && btn.dataset.act === 'del-catalogue') {
       const p = btn.dataset.provider;
       const m = btn.dataset.model;
@@ -671,6 +771,42 @@ export function adminHtml(): string {
       } catch (err) {
         toast('Delete failed: ' + err.message, true);
       }
+    }
+  });
+
+  // Skills form
+  document.getElementById('skills-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    let manifest = {};
+    try {
+      manifest = JSON.parse(f.get('manifest') || '{}');
+    } catch (err) {
+      toast('Manifest must be valid JSON', true);
+      return;
+    }
+    const payload = {
+      skill_id: (f.get('skill_id') || '').trim(),
+      version: (f.get('version') || '0.1.0').trim(),
+      title: (f.get('title') || '').trim(),
+      description: (f.get('description') || '').trim(),
+      category: (f.get('category') || 'general').trim(),
+      publisher_name: (f.get('publisher_name') || 'Unknown').trim(),
+      kind: f.get('kind') || 'composite',
+      manifest,
+      pricing_tier_min: f.get('pricing_tier_min') || 'free',
+    };
+    try {
+      await api('/admin/v1/skills', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      toast('Published ' + payload.skill_id);
+      e.target.reset();
+      await loadSkills();
+    } catch (err) {
+      toast('Publish failed: ' + err.message, true);
     }
   });
 

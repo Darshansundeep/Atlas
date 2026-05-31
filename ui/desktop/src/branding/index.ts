@@ -34,7 +34,7 @@ export const FEATURES = {
 
   // Hidden at v1 — re-enable per future release
   recipes: false,
-  skills: false,
+  skills: true,                     // Spec 022 v0.1 — Atlas Cloud skills catalogue is on
   apps: false,
   scheduler: false,
   extensions: false,

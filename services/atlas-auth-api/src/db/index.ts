@@ -44,4 +44,7 @@ export async function migrate(databaseUrl: string): Promise<void> {
   // Seed the model catalogue (idempotent — ON CONFLICT updates).
   const seed = readFileSync(join(here, 'seed-catalogue.sql'), 'utf8');
   await query(databaseUrl, seed);
+  // Seed the skills catalogue (Spec 022 v0.1).
+  const skillsSeed = readFileSync(join(here, 'seed-skills.sql'), 'utf8');
+  await query(databaseUrl, skillsSeed);
 }

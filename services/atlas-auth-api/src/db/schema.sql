@@ -67,6 +67,30 @@ CREATE INDEX IF NOT EXISTS usage_events_user_recent_idx
 CREATE INDEX IF NOT EXISTS usage_events_user_day_idx
   ON usage_events(user_id, occurred_at);
 
+-- Spec 022 v0.1 — Skills catalogue (no signing, no org policy yet).
+-- A skill is a versioned bundle of an MCP extension config and/or a
+-- recipe payload, with metadata. Future v0.2 adds ed25519 manifest
+-- signing; v0.3 adds per-org allow/deny lists (depends on orgs from
+-- spec 021).
+CREATE TABLE IF NOT EXISTS skills_catalogue (
+  skill_id              TEXT PRIMARY KEY,        -- reverse-DNS, e.g. ai.netgroup.atlas.web-research
+  version               TEXT NOT NULL,
+  title                 TEXT NOT NULL,
+  description           TEXT NOT NULL,
+  category              TEXT NOT NULL DEFAULT 'general',
+  publisher_name        TEXT NOT NULL,
+  publisher_verified    BOOLEAN NOT NULL DEFAULT FALSE,
+  kind                  TEXT NOT NULL,           -- 'extension' | 'recipe' | 'composite'
+  manifest              JSONB NOT NULL,          -- full skill manifest (see spec 022)
+  capabilities          JSONB NOT NULL DEFAULT '[]',
+  pricing_tier_min      TEXT NOT NULL DEFAULT 'free',
+  deprecated            BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS skills_catalogue_category_idx ON skills_catalogue(category);
+CREATE INDEX IF NOT EXISTS skills_catalogue_publisher_idx ON skills_catalogue(publisher_name);
+
 -- Spec 011 — Central model catalogue.
 -- Source-of-truth for (provider, model) pricing + capabilities. The
 -- desktop catalogue ships bundled for offline use; this table is the
