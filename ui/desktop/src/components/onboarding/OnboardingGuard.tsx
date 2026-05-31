@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConfig } from '../ConfigContext';
 import { useModelAndProvider } from '../ModelAndProviderContext';
-import { Goose } from '../icons'; // brand-allow: internal component import
 import { Button } from '../ui/button';
 import ProviderSelector from './ProviderSelector';
 import OnboardingSuccess from './OnboardingSuccess';
+import { AtlasMark } from '../atlas-brand/AtlasMark';
+import { HeroBackground } from '../atlas-brand/HeroBackground';
+import { SignInScreen } from '../../auth/SignInScreen';
+import { useAuth } from '../../auth';
 import {
   trackOnboardingStarted,
   trackOnboardingCompleted,
@@ -49,11 +52,18 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
   const navigate = useNavigate();
   const { read, upsert, getProviders } = useConfig();
   const { getFallbackModelAndProvider, refreshCurrentModelAndProvider } = useModelAndProvider();
+  const auth = useAuth();
 
   const [isCheckingProvider, setIsCheckingProvider] = useState(true);
   const [hasProvider, setHasProvider] = useState(false);
   const [checkProviderError, setCheckProviderError] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
+  /**
+   * The premium welcome surface has two paths:
+   *   - 'choice'  — pick Cloud sign-in vs BYOK (default for first-run)
+   *   - 'byok'    — show ProviderSelector (existing BYOK flow, restyled)
+   */
+  const [welcomeStep, setWelcomeStep] = useState<'choice' | 'byok'>('choice');
   const [configuredProvider, setConfiguredProvider] = useState<string | null>(null);
   const [configuredProviderDisplayName, setConfiguredProviderDisplayName] = useState<string | null>(
     null
@@ -151,18 +161,39 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
 
   if (checkProviderError) {
     return (
-      <div className="h-screen w-full bg-background-default flex flex-col items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="mb-4">
-            <Goose className="size-8 mx-auto" /> {/* brand-allow: internal component */}
+      <HeroBackground intense className="min-h-screen">
+        <div className="flex items-center justify-center w-full min-h-screen p-6">
+          <div
+            className="text-center max-w-md w-full rounded-2xl p-8"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.96)',
+              boxShadow: 'var(--shadow-lg)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <div className="flex justify-center mb-4">
+              <AtlasMark size={40} />
+            </div>
+            <h1
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: 600,
+                letterSpacing: '-0.02em',
+                color: 'var(--atlas-brand-ink)',
+                marginBottom: '0.75rem',
+              }}
+            >
+              {intl.formatMessage(i18n.checkProviderErrorTitle)}
+            </h1>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              {intl.formatMessage(i18n.checkProviderErrorDescription)}
+            </p>
+            <Button onClick={() => checkProvider()}>
+              {intl.formatMessage(i18n.retry)}
+            </Button>
           </div>
-          <h1 className="text-xl font-light mb-3">{intl.formatMessage(i18n.checkProviderErrorTitle)}</h1>
-          <p className="text-text-muted mb-6">{intl.formatMessage(i18n.checkProviderErrorDescription)}</p>
-          <Button onClick={() => checkProvider()}>
-            {intl.formatMessage(i18n.retry)}
-          </Button>
         </div>
-      </div>
+      </HeroBackground>
     );
   }
 
@@ -176,21 +207,59 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
     );
   }
 
+  // First-run / signed-out / no-provider — premium hero choice screen.
+  if (welcomeStep === 'choice' && !auth.user) {
+    return <SignInScreen onContinueBYOK={() => setWelcomeStep('byok')} />;
+  }
+
+  // BYOK provider setup — keep the existing ProviderSelector but wrap it
+  // in the premium chrome so first-run still feels like one designed flow.
   return (
-    <div className="h-screen w-full bg-background-default overflow-hidden">
-      <div className="h-full overflow-y-auto">
+    <HeroBackground intense={false} className="min-h-screen">
+      <div className="h-screen w-full overflow-y-auto">
         <div
-          className={`flex flex-col items-center p-4 pb-8 transition-all duration-500 ease-in-out ${hasSelection ? 'pt-8' : 'pt-[15vh]'}`}
+          className={`flex flex-col items-center p-6 pb-8 transition-all duration-500 ease-in-out ${
+            hasSelection ? 'pt-10' : 'pt-[12vh]'
+          }`}
         >
           <div className="max-w-2xl w-full mx-auto">
             <div
-              className={`text-left transition-all duration-500 ease-in-out overflow-hidden ${hasSelection ? 'max-h-0 opacity-0 mb-0' : 'max-h-60 opacity-100 mb-8'}`}
+              className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                hasSelection ? 'max-h-0 opacity-0 mb-0' : 'max-h-80 opacity-100 mb-8'
+              }`}
             >
-              <div className="mb-4">
-                <Goose className="size-8" /> {/* brand-allow: internal component */}
+              <div className="flex items-center gap-3 mb-5">
+                <AtlasMark size={36} />
+                <span
+                  style={{
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
+                  Connect a provider
+                </span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-light mb-3">{intl.formatMessage(i18n.welcomeTitle)}</h1>
-              <p className="text-text-muted text-base sm:text-lg">
+              <h1
+                style={{
+                  fontSize: '2.25rem',
+                  fontWeight: 600,
+                  letterSpacing: '-0.025em',
+                  color: 'var(--atlas-brand-ink)',
+                  lineHeight: 1.1,
+                  marginBottom: '0.75rem',
+                }}
+              >
+                {intl.formatMessage(i18n.welcomeTitle)}
+              </h1>
+              <p
+                style={{
+                  fontSize: '1rem',
+                  color: 'var(--color-text-secondary)',
+                  lineHeight: 1.5,
+                  maxWidth: '52ch',
+                }}
+              >
                 {intl.formatMessage(i18n.welcomeDescription)}
               </p>
             </div>
@@ -202,6 +271,6 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
           </div>
         </div>
       </div>
-    </div>
+    </HeroBackground>
   );
 }

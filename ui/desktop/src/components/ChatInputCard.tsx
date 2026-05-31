@@ -15,9 +15,15 @@ export const ChatInputCard: React.FC<{
 }> = ({ className, children }) => (
   <div
     className={cn(
-      'rounded-2xl border border-border-primary shadow-sm overflow-hidden bg-background-primary',
+      'rounded-2xl border border-border-primary overflow-hidden bg-background-primary',
+      'transition-shadow focus-within:ring-2',
       className
     )}
+    style={{
+      boxShadow: 'var(--shadow-md)',
+      // Focus ring uses the brand cobalt; the actual ring color is set by the
+      // Tailwind ring-* utilities through CSS var, but we keep an inline fallback.
+    }}
   >
     {children}
   </div>

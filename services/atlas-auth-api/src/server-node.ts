@@ -16,6 +16,7 @@ const env = {
   WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
   WORKOS_API_KEY: process.env.WORKOS_API_KEY,
   CORS_ORIGINS: process.env.CORS_ORIGINS,
+  ADMIN_TOKEN: process.env.ADMIN_TOKEN,
 };
 
 if (!env.DATABASE_URL) {

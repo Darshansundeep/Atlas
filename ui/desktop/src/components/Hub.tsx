@@ -105,15 +105,46 @@ export default function Hub({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 items-center justify-center px-6 relative">
+    <div
+      className="flex flex-col h-full min-h-0 items-center justify-center px-6 relative"
+      style={{
+        background: 'var(--atlas-gradient-soft)',
+      }}
+    >
       <div className="w-full max-w-2xl">
         <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-6xl font-light text-text-primary tracking-tight tabular-nums">
+          <span
+            className="tabular-nums"
+            style={{
+              fontSize: '4rem',
+              fontWeight: 300,
+              color: 'var(--atlas-brand-ink)',
+              letterSpacing: '-0.04em',
+              lineHeight: 1,
+            }}
+          >
             {time}
           </span>
-          <span className="text-2xl font-light text-text-secondary">{meridiem}</span>
+          <span
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 300,
+              color: 'var(--color-text-secondary)',
+            }}
+          >
+            {meridiem}
+          </span>
         </div>
-        <p className="text-xl text-text-secondary mb-6">{greeting}</p>
+        <p
+          style={{
+            fontSize: '1.25rem',
+            color: 'var(--color-text-secondary)',
+            marginBottom: '1.75rem',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {greeting}
+        </p>
 
         <ChatInputCard>
           <ChatInput

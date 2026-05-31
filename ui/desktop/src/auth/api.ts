@@ -16,15 +16,22 @@ import type {
 
 const DEFAULT_BACKEND_URL = 'https://api.atlas.netgroup.ai';
 
+let cachedBackendUrl: string | null = null;
+
+export function setBackendUrl(url: string): void {
+  cachedBackendUrl = (url || DEFAULT_BACKEND_URL).replace(/\/+$/, '');
+}
+
 export function authBackendUrl(): string {
-  let fromEnv: string | undefined;
-  if (typeof process !== 'undefined' && process.env?.ATLAS_AUTH_BACKEND_URL) {
-    fromEnv = process.env.ATLAS_AUTH_BACKEND_URL;
-  } else if (typeof window !== 'undefined') {
+  if (cachedBackendUrl) return cachedBackendUrl;
+  if (typeof window !== 'undefined') {
     const fromWindow = (window as { ATLAS_AUTH_BACKEND_URL?: string }).ATLAS_AUTH_BACKEND_URL;
-    if (fromWindow) fromEnv = fromWindow;
+    if (fromWindow) return fromWindow.replace(/\/+$/, '');
   }
-  return (fromEnv ?? DEFAULT_BACKEND_URL).replace(/\/+$/, '');
+  if (typeof process !== 'undefined' && process.env?.ATLAS_AUTH_BACKEND_URL) {
+    return process.env.ATLAS_AUTH_BACKEND_URL.replace(/\/+$/, '');
+  }
+  return DEFAULT_BACKEND_URL;
 }
 
 function newReqId(): string {

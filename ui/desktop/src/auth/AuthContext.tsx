@@ -28,6 +28,7 @@ import {
   getMe,
   getSubscription,
   revoke as apiRevoke,
+  setBackendUrl,
 } from './api';
 import type { AuthUser, SubscriptionState, TokenGrantResponse } from './types';
 
@@ -167,10 +168,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [clearTimers]);
 
-  // On mount: try to rehydrate from keychain.
+  // On mount: load backend URL from main process, then rehydrate.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      try {
+        const url = await window.atlasAuth.getBackendUrl();
+        if (url) setBackendUrl(url);
+      } catch {
+        // fall through to defaults
+      }
       const ok = await doRefresh();
       if (cancelled) return;
       if (!ok) setState((s) => ({ ...s, initializing: false }));

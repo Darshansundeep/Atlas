@@ -246,46 +246,64 @@
   }
 }
 
-@font-face {
-  font-family: 'Cash Sans';
-  src:
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff2/CashSans-Light.woff2)
-      format('woff2'),
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff/CashSans-Light.woff) format('woff');
-  font-weight: 300;
-  font-style: normal;
+/* ═══════════════════════════════════════════════════════════════════════════
+   Atlas brand tokens — not part of the MCP semantic schema, used by
+   premium hero surfaces (welcome, sign-in, empty-state).
+   Keep these orthogonal to the McpUiStyleVariableKey set so MCP guest
+   payloads remain unchanged.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --atlas-brand-cobalt: #1e2a55;
+  --atlas-brand-cobalt-hover: #283b76;
+  --atlas-brand-cobalt-deep: #0f1729;
+  --atlas-brand-amber: #d4a44a;
+  --atlas-brand-amber-hover: #e0b35a;
+  --atlas-brand-amber-soft: rgba(212, 164, 74, 0.16);
+  --atlas-brand-cream: #faf8f2;
+  --atlas-brand-ink: #0f1729;
+
+  --atlas-gradient-hero: linear-gradient(
+    135deg,
+    #0f1729 0%,
+    #1e2a55 38%,
+    #3b4d8f 70%,
+    #d4a44a 110%
+  );
+  --atlas-gradient-soft:
+    radial-gradient(60% 70% at 50% 0%, rgba(30, 42, 85, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #fafaf7 0%, #f1efe6 100%);
+  --atlas-gradient-card-glow:
+    radial-gradient(80% 60% at 50% 0%, rgba(212, 164, 74, 0.10), transparent 70%);
 }
 
-@font-face {
-  font-family: 'Cash Sans';
-  src:
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff2/CashSans-Regular.woff2)
-      format('woff2'),
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff/CashSans-Regular.woff)
-      format('woff');
-  font-weight: 400;
-  font-style: normal;
+.dark {
+  --atlas-brand-cobalt: #6e83c8;
+  --atlas-brand-cobalt-hover: #8094d4;
+  --atlas-brand-cobalt-deep: #1e2a55;
+  --atlas-brand-amber: #d4a44a;
+  --atlas-brand-amber-hover: #e0b35a;
+  --atlas-brand-amber-soft: rgba(212, 164, 74, 0.18);
+  --atlas-brand-cream: #f4ede0;
+  --atlas-brand-ink: #f4ede0;
+
+  --atlas-gradient-hero: linear-gradient(
+    135deg,
+    #050811 0%,
+    #0f1729 40%,
+    #1e2a55 75%,
+    #d4a44a 130%
+  );
+  --atlas-gradient-soft:
+    radial-gradient(60% 70% at 50% 0%, rgba(110, 131, 200, 0.08) 0%, transparent 60%),
+    linear-gradient(180deg, #0a0e1a 0%, #0d1124 100%);
+  --atlas-gradient-card-glow:
+    radial-gradient(80% 60% at 50% 0%, rgba(212, 164, 74, 0.06), transparent 70%);
 }
 
-@font-face {
-  font-family: 'Cash Sans';
-  src:
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff2/CashSans-Medium.woff2)
-      format('woff2'),
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff/CashSans-Medium.woff) format('woff');
-  font-weight: 500;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Cash Sans';
-  src:
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff2/CashSans-Bold.woff2)
-      format('woff2'),
-    url(https://cash-f.squarecdn.com/static/fonts/cashsans/woff/CashSans-Bold.woff) format('woff');
-  font-weight: 700;
-  font-style: normal;
-}
+/* Atlas relies on the system font stack defined in --font-sans (Inter when
+   available, falling back to the platform UI font). The previous Cash Sans
+   CDN @font-face block has been removed — it was an upstream Square brand
+   asset and a privacy concern in a packaged desktop app. */
 
 /* animations */
 @keyframes appear {

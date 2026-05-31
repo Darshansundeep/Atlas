@@ -25,6 +25,7 @@ import {
 import { pickIdp } from './idp/index.js';
 import { emit as auditEmit } from './audit.js';
 import { stubAuthStartHtml } from './stub-page.js';
+import { mountAdmin } from './admin/routes.js';
 import {
   entitlementsFor,
   getSubscription,
@@ -38,6 +39,7 @@ interface Env {
   WORKOS_CLIENT_ID?: string;
   WORKOS_API_KEY?: string;
   CORS_ORIGINS?: string;
+  ADMIN_TOKEN?: string;
 }
 
 type Vars = {
@@ -78,6 +80,10 @@ export function createApp(env: Env) {
       'max-age=31536000; includeSubDomains; preload'
     );
   });
+
+  // Admin panel — HTML page + JSON endpoints. ADMIN_TOKEN gates the JSON;
+  // the page itself is public and self-gates client-side.
+  mountAdmin(app, env);
 
   app.get('/healthz', (c) => c.text('ok'));
   app.get('/.well-known/jwks.json', (c) =>
