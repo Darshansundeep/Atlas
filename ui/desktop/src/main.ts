@@ -11,6 +11,7 @@ import {
   net,
   Notification,
   powerSaveBlocker,
+  safeStorage,
   screen,
   session,
   shell,
@@ -365,13 +366,13 @@ if (process.env.ENABLE_PLAYWRIGHT) {
 // In production, register normally
 if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
   // Development mode - force registration
-  console.log('[Main] Development mode: Forcing protocol registration for goose://');
-  app.setAsDefaultProtocolClient('goose');
+  console.log('[Main] Development mode: Forcing protocol registration for atlas://');
+  app.setAsDefaultProtocolClient('atlas');
 
   if (process.platform === 'darwin') {
     try {
       // Reset the default handler to ensure dev version takes precedence
-      spawn('open', ['-a', process.execPath, '--args', '--reset-protocol-handler', 'goose'], {
+      spawn('open', ['-a', process.execPath, '--args', '--reset-protocol-handler', 'atlas'], {
         detached: true,
         stdio: 'ignore',
       });
@@ -381,7 +382,7 @@ if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
   }
 } else {
   // Production mode - normal registration
-  app.setAsDefaultProtocolClient('goose');
+  app.setAsDefaultProtocolClient('atlas');
 }
 
 // Apply single instance lock on Windows and Linux where it's needed for deep links
@@ -394,7 +395,9 @@ if (process.platform !== 'darwin') {
     app.quit();
   } else {
     app.on('second-instance', (_event, commandLine) => {
-      const protocolUrl = commandLine.find((arg) => arg.startsWith('goose://'));
+      const protocolUrl = commandLine.find(
+        (arg) => arg.startsWith('atlas://') || arg.startsWith('goose://')
+      );
       if (protocolUrl) {
         const parsedUrl = new URL(protocolUrl);
         // If it's a bot/recipe URL, handle it directly by creating a new window
@@ -452,7 +455,9 @@ if (process.platform !== 'darwin') {
   }
 
   // Handle protocol URLs on Windows and Linux startup
-  const protocolUrl = process.argv.find((arg) => arg.startsWith('goose://'));
+  const protocolUrl = process.argv.find(
+    (arg) => arg.startsWith('atlas://') || arg.startsWith('goose://')
+  );
   if (protocolUrl) {
     app.whenReady().then(() => {
       handleProtocolUrl(protocolUrl);
@@ -475,7 +480,7 @@ function getResumeSessionId(parsedUrl: URL): string | null {
 async function createResumeChatWindow(parsedUrl: URL, dir?: string): Promise<boolean> {
   const resumeSessionId = getResumeSessionId(parsedUrl);
   if (!resumeSessionId) {
-    log.warn('[Main] Ignoring goose://resume URL without a session id');
+    log.warn('[Main] Ignoring atlas://resume URL without a session id');
     return false;
   }
 
@@ -546,6 +551,9 @@ async function processProtocolUrl(url: string, parsedUrl: URL, window: BrowserWi
 }
 
 let windowDeeplinkURL: string | null = null;
+// Spec 002 — when atlas://auth fires before any window exists, stash the
+// payload so the renderer can pull it via `atlas-auth-pending-deeplink`.
+let pendingAuthDelivery: { code: string; state: string } | null = null;
 
 app.on('open-url', async (_event, url) => {
   if (process.platform !== 'win32') {
@@ -560,6 +568,26 @@ app.on('open-url', async (_event, url) => {
 
     const recentDirs = loadRecentDirs();
     const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+
+    // Spec 002 — atlas://auth?code=…&state=… deep link from sign-in browser.
+    // Route the code into the in-flight renderer attempt; never log values.
+    if (parsedUrl.hostname === 'auth') {
+      const code = parsedUrl.searchParams.get('code') ?? '';
+      const state = parsedUrl.searchParams.get('state') ?? '';
+      log.info('[Main] atlas://auth received (code redacted)');
+      const existing = BrowserWindow.getAllWindows();
+      if (existing.length === 0) {
+        // No window yet — store and let the renderer ask once it's ready.
+        pendingAuthDelivery = { code, state };
+        await createChat(app, { dir: openDir || undefined });
+        return;
+      }
+      const target = existing[0];
+      if (target.isMinimized()) target.restore();
+      target.focus();
+      target.webContents.send('atlas-auth-deeplink', { code, state });
+      return;
+    }
 
     // Handle new-session URL by creating a fresh chat window
     if (parsedUrl.hostname === 'new-session') {
@@ -2671,6 +2699,127 @@ async function appMain() {
       console.error('Error revealing item in folder:', error);
       return false;
     }
+  });
+
+  // ----------------------------------------------------------------------
+  // Spec 002 cloud-auth — IPC handlers + keychain bridge.
+  //
+  // The refresh token is the ONLY persistent secret. It is encrypted via
+  // safeStorage (which delegates to the OS keychain on macOS / Credential
+  // Manager on Windows / libsecret on Linux) and written to a small JSON
+  // beside the settings file. The device-install id is a non-sensitive
+  // UUID kept in plaintext beside it so we can re-issue it if needed.
+  // ----------------------------------------------------------------------
+
+  const authBackendUrl = (): string =>
+    process.env.ATLAS_AUTH_BACKEND_URL ?? 'https://api.atlas.netgroup.ai';
+
+  const ATLAS_AUTH_FILE = path.join(app.getPath('userData'), 'auth.json');
+
+  type StoredAuth = {
+    encryptedRefreshTokenB64?: string;
+    deviceInstallId?: string;
+  };
+
+  function readAuthFile(): StoredAuth {
+    try {
+      if (!fsSync.existsSync(ATLAS_AUTH_FILE)) return {};
+      return JSON.parse(fsSync.readFileSync(ATLAS_AUTH_FILE, 'utf8')) as StoredAuth;
+    } catch {
+      return {};
+    }
+  }
+
+  function writeAuthFile(a: StoredAuth): void {
+    try {
+      fsSync.writeFileSync(ATLAS_AUTH_FILE, JSON.stringify(a, null, 2), { mode: 0o600 });
+    } catch (e) {
+      console.error('[atlas-auth] failed to write auth.json', e);
+    }
+  }
+
+  ipcMain.handle(
+    'atlas-auth-start-sign-in',
+    async (
+      _event,
+      args: { state: string; codeChallenge: string; redirectUri: string }
+    ): Promise<{ ok: boolean; openedUrl?: string }> => {
+      // Build the hosted sign-in URL. The backend exposes /v1/auth/start
+      // when WorkOS is wired in; for stub mode we just open the API root
+      // with the params so the developer can see them and craft a code.
+      const base = authBackendUrl();
+      const u = new URL(`${base}/v1/auth/start`);
+      u.searchParams.set('state', args.state);
+      u.searchParams.set('code_challenge', args.codeChallenge);
+      u.searchParams.set('code_challenge_method', 'S256');
+      u.searchParams.set('redirect_uri', args.redirectUri);
+      try {
+        await shell.openExternal(u.toString());
+        return { ok: true, openedUrl: u.toString() };
+      } catch (e) {
+        console.error('[atlas-auth] failed to open browser', e);
+        return { ok: false };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'atlas-auth-persist-grant',
+    async (_event, args: { refreshToken: string; deviceInstallId: string }): Promise<boolean> => {
+      try {
+        if (!safeStorage.isEncryptionAvailable()) {
+          console.error('[atlas-auth] safeStorage unavailable; refusing to persist refresh token');
+          return false;
+        }
+        const enc = safeStorage.encryptString(args.refreshToken);
+        const stored: StoredAuth = {
+          encryptedRefreshTokenB64: enc.toString('base64'),
+          deviceInstallId: args.deviceInstallId,
+        };
+        writeAuthFile(stored);
+        return true;
+      } catch (e) {
+        console.error('[atlas-auth] persist failed', e);
+        return false;
+      }
+    }
+  );
+
+  ipcMain.handle('atlas-auth-load-refresh-token', async (): Promise<string | null> => {
+    const stored = readAuthFile();
+    if (!stored.encryptedRefreshTokenB64) return null;
+    try {
+      if (!safeStorage.isEncryptionAvailable()) return null;
+      const buf = Buffer.from(stored.encryptedRefreshTokenB64, 'base64');
+      return safeStorage.decryptString(buf);
+    } catch (e) {
+      console.error('[atlas-auth] decrypt failed', e);
+      return null;
+    }
+  });
+
+  ipcMain.handle('atlas-auth-load-device-install-id', async (): Promise<string | null> => {
+    const stored = readAuthFile();
+    return stored.deviceInstallId ?? null;
+  });
+
+  ipcMain.handle('atlas-auth-wipe', async (): Promise<void> => {
+    try {
+      if (fsSync.existsSync(ATLAS_AUTH_FILE)) fsSync.unlinkSync(ATLAS_AUTH_FILE);
+    } catch (e) {
+      console.error('[atlas-auth] wipe failed', e);
+    }
+  });
+
+  ipcMain.handle('atlas-auth-get-backend-url', async (): Promise<string> => {
+    return authBackendUrl();
+  });
+
+  ipcMain.handle('atlas-auth-pending-deeplink', async (): Promise<{ code: string; state: string } | null> => {
+    if (!pendingAuthDelivery) return null;
+    const d = pendingAuthDelivery;
+    pendingAuthDelivery = null;
+    return d;
   });
 
   ipcMain.handle('launch-app', async (event, gooseApp: GooseApp) => {

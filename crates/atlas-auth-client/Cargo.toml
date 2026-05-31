@@ -1,0 +1,17 @@
+[package]
+name = "atlas-auth-client"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Atlas auth client primitives: PKCE generation, opaque-token holders, JWT claim shapes. Spec 002-cloud-auth."
+
+[dependencies]
+base64 = { workspace = true }
+rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+sha2 = { version = "0.10", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[dev-dependencies]

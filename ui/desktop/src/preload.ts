@@ -355,14 +355,41 @@ const appConfigAPI: AppConfigAPI = {
   getAll: () => config,
 };
 
+// Spec 002 cloud-auth — minimal bridge between renderer and the main-process
+// keychain + browser launcher. Refresh tokens NEVER pass back to JS — they
+// live only in `auth.json` (safeStorage-encrypted) on disk.
+const atlasAuthAPI = {
+  startSignIn: (args: { state: string; codeChallenge: string; redirectUri: string }) =>
+    ipcRenderer.invoke('atlas-auth-start-sign-in', args) as Promise<{ ok: boolean; openedUrl?: string }>,
+  persistGrant: (args: { refreshToken: string; deviceInstallId: string }) =>
+    ipcRenderer.invoke('atlas-auth-persist-grant', args) as Promise<boolean>,
+  loadRefreshToken: () => ipcRenderer.invoke('atlas-auth-load-refresh-token') as Promise<string | null>,
+  loadDeviceInstallId: () =>
+    ipcRenderer.invoke('atlas-auth-load-device-install-id') as Promise<string | null>,
+  wipe: () => ipcRenderer.invoke('atlas-auth-wipe') as Promise<void>,
+  getBackendUrl: () => ipcRenderer.invoke('atlas-auth-get-backend-url') as Promise<string>,
+  pendingDeeplink: () =>
+    ipcRenderer.invoke('atlas-auth-pending-deeplink') as Promise<{ code: string; state: string } | null>,
+  onDeeplink: (cb: (payload: { code: string; state: string }) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, payload: { code: string; state: string }) =>
+      cb(payload);
+    ipcRenderer.on('atlas-auth-deeplink', handler);
+    return () => ipcRenderer.removeListener('atlas-auth-deeplink', handler);
+  },
+};
+
+export type AtlasAuthAPI = typeof atlasAuthAPI;
+
 // Expose the APIs
 contextBridge.exposeInMainWorld('electron', electronAPI);
 contextBridge.exposeInMainWorld('appConfig', appConfigAPI);
+contextBridge.exposeInMainWorld('atlasAuth', atlasAuthAPI);
 
 // Type declaration for TypeScript
 declare global {
   interface Window {
     electron: ElectronAPI;
     appConfig: AppConfigAPI;
+    atlasAuth: AtlasAuthAPI;
   }
 }

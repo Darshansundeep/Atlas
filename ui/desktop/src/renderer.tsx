@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { IntlProvider } from 'react-intl';
 import { ConfigProvider } from './components/ConfigContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AuthProvider } from './auth';
 import SuspenseLoader from './suspense-loader';
 import { client } from './api/client.gen';
 import { setTelemetryEnabled } from './utils/analytics';
@@ -72,9 +73,11 @@ function handleIntlError(err: { code: string; message?: string }) {
       >
         <Suspense fallback={SuspenseLoader()}>
           <ConfigProvider>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
+            <AuthProvider>
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>
+            </AuthProvider>
           </ConfigProvider>
         </Suspense>
       </IntlProvider>

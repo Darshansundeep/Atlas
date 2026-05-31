@@ -1,0 +1,33 @@
+{
+  "name": "@atlas/auth-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atlas auth backend — issues access JWTs + rotating refresh tokens. Spec 002-cloud-auth.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/server-node.ts",
+    "start": "tsx src/server-node.ts",
+    "migrate": "tsx src/db/migrate.ts",
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "hono": "^4.6.14",
+    "jose": "^5.9.6",
+    "pg": "^8.13.1",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

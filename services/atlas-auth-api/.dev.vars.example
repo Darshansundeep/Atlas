@@ -1,0 +1,26 @@
+# Atlas Auth backend — local dev config.
+# Copy to .dev.vars and fill in real values. .dev.vars is gitignored.
+
+# Set to "true" for local development without a WorkOS account.
+# Stub IdP issues predictable users keyed on the email you submit.
+# MUST be "false" in any non-dev environment.
+STUB_IDP=true
+
+# WorkOS — required when STUB_IDP=false.
+WORKOS_CLIENT_ID=
+WORKOS_API_KEY=
+WORKOS_WEBHOOK_SECRET=
+
+# JWT signing — generate with: openssl rand -base64 32
+JWT_SIGNING_SECRET=devsecret-replace-in-prod-aaaaaaaaaaaaaaaaaaa
+
+# Postgres connection.
+# Local: postgres://postgres:devpass@127.0.0.1:5432/atlas_auth
+# Prod: provided by Neon/Supabase
+DATABASE_URL=postgres://postgres:devpass@127.0.0.1:5432/atlas_auth
+
+# Port the Node dev server binds to.
+PORT=8787
+
+# Comma-separated allowed origins for CORS. Loopback wildcard handled separately.
+CORS_ORIGINS=https://auth.atlas.netgroup.ai
