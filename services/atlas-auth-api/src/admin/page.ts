@@ -481,8 +481,20 @@ export function adminHtml(): string {
               </select>
             </label>
             <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
-              Manifest (JSON)
-              <textarea name="manifest" rows="4" placeholder='{"extensions":[],"capabilities":{}}' style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px;resize:vertical;">{}</textarea>
+              When to use (one sentence — the trigger)
+              <textarea name="when_to_use" rows="2" placeholder='User asks to research a topic, verify a claim, or find citations. Triggers on "research", "verify", "find sources".' style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;resize:vertical;"></textarea>
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Instructions (markdown — this is the SKILL.md body)
+              <textarea name="instructions_md" rows="10" placeholder="# Skill Name&#10;&#10;## Approach&#10;1. Step one&#10;2. Step two&#10;&#10;## When NOT to use this skill&#10;- ...&#10;&#10;## Output format&#10;..." style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;margin-top:4px;resize:vertical;"></textarea>
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Examples (markdown — concrete user input → expected approach + output)
+              <textarea name="examples_md" rows="6" placeholder="## Example&#10;&#10;**User**: ...&#10;**Approach**: ...&#10;**Output**: ..." style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;margin-top:4px;resize:vertical;"></textarea>
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Manifest (JSON — extensions, recipe, capabilities config only)
+              <textarea name="manifest" rows="3" placeholder='{"extensions":[{"ref":"@atlas/extension-fetch","config":{}}],"capabilities":{"network":["https://*"]}}' style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px;resize:vertical;">{}</textarea>
             </label>
             <label id="skills-form-changelog-wrap" style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
               Changelog (this version's notes)
@@ -731,13 +743,21 @@ export function adminHtml(): string {
       return;
     }
     const head = '<thead><tr>' +
-      '<th>Skill ID</th><th>Title</th><th>Kind</th><th>Publisher</th>' +
+      '<th>Skill ID</th><th>Title</th><th>SKILL.md</th><th>Kind</th><th>Publisher</th>' +
       '<th>Tier</th><th>Version</th><th>Updated</th><th>Actions</th>' +
       '</tr></thead>';
-    const rows = skills.map(s =>
-      '<tr' + (s.deprecated ? ' style="opacity:.5"' : '') + '>' +
+    const rows = skills.map(s => {
+      const hasMd = !!(s.instructions_md && s.instructions_md.trim().length > 0);
+      const hasWhen = !!(s.when_to_use && s.when_to_use.trim().length > 0);
+      const mdBadge = hasMd && hasWhen
+        ? '<span class="pill success">✓ full</span>'
+        : hasMd || hasWhen
+          ? '<span class="pill warn">partial</span>'
+          : '<span class="pill danger">missing</span>';
+      return '<tr' + (s.deprecated ? ' style="opacity:.5"' : '') + '>' +
         '<td class="mono">' + escape(s.skill_id) + '</td>' +
         '<td>' + escape(s.title) + '</td>' +
+        '<td>' + mdBadge + '</td>' +
         '<td><span class="pill">' + escape(s.kind) + '</span></td>' +
         '<td>' + escape(s.publisher_name) +
           (s.publisher_verified ? ' <span class="pill success" style="margin-left:4px">verified</span>' : '') +
@@ -750,8 +770,8 @@ export function adminHtml(): string {
           '<button class="action" data-act="versions-skill" data-id="' + escape(s.skill_id) + '">Versions</button> ' +
           '<button class="action danger" data-act="del-skill" data-id="' + escape(s.skill_id) + '">Delete</button>' +
         '</td>' +
-      '</tr>'
-    ).join('');
+      '</tr>';
+    }).join('');
     document.getElementById('skills-table').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
   }
 
@@ -784,6 +804,9 @@ export function adminHtml(): string {
     f.querySelector('[name=publisher_name]').value = s.publisher_name ?? '';
     f.querySelector('[name=pricing_tier_min]').value = s.pricing_tier_min ?? 'free';
     f.querySelector('[name=manifest]').value = JSON.stringify(s.manifest ?? {}, null, 2);
+    f.querySelector('[name=when_to_use]').value = s.when_to_use ?? '';
+    f.querySelector('[name=instructions_md]').value = s.instructions_md ?? '';
+    f.querySelector('[name=examples_md]').value = s.examples_md ?? '';
     f.querySelector('[name=changelog]').value = '';
 
     document.getElementById('skills-form-mode').value = 'save';
@@ -946,6 +969,9 @@ export function adminHtml(): string {
       kind: formData.get('kind') || 'composite',
       manifest,
       pricing_tier_min: formData.get('pricing_tier_min') || 'free',
+      when_to_use: (formData.get('when_to_use') || '').trim() || null,
+      instructions_md: (formData.get('instructions_md') || '').trim() || null,
+      examples_md: (formData.get('examples_md') || '').trim() || null,
       changelog: (formData.get('changelog') || '').trim() || undefined,
     };
   }

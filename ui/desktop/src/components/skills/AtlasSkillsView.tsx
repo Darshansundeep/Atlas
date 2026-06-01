@@ -29,6 +29,23 @@ import {
 import { AtlasMark } from '../atlas-brand/AtlasMark';
 import { EmptyIllustration } from '../atlas-brand/EmptyIllustration';
 import { authBackendUrl, useAuth } from '../../auth';
+import MarkdownContent from '../MarkdownContent';
+
+/** Render skill prose with the same MarkdownContent component used in chat
+ *  bubbles — keeps formatting / code highlighting consistent. */
+function SkillMarkdown({ source }: { source: string }) {
+  return (
+    <div
+      className="rounded p-3"
+      style={{
+        background: 'var(--color-background-secondary)',
+        border: '1px solid var(--color-border-primary)',
+      }}
+    >
+      <MarkdownContent content={source} />
+    </div>
+  );
+}
 
 interface SkillRow {
   skill_id: string;
@@ -41,6 +58,11 @@ interface SkillRow {
   capabilities: string[];
   pricing_tier_min: 'free' | 'pro' | 'team' | 'enterprise';
   manifest: Record<string, unknown>;
+  /** Spec 022 v0.3 — SKILL.md content. Null for legacy skills. */
+  when_to_use?: string | null;
+  instructions_md?: string | null;
+  examples_md?: string | null;
+  supporting_files?: Record<string, string>;
   updated_at: string;
 }
 
@@ -572,6 +594,72 @@ function SkillDetailModal({
           <p style={{ fontSize: '0.88rem', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
             {skill.description}
           </p>
+
+          {/* SKILL.md prose — the actual capability */}
+          {skill.when_to_use && skill.when_to_use.trim() && (
+            <div>
+              <div
+                className="mb-1"
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                When to use
+              </div>
+              <div
+                className="px-3 py-2 rounded"
+                style={{
+                  background: 'var(--atlas-brand-amber-soft)',
+                  color: 'var(--atlas-brand-ink)',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.5,
+                  fontStyle: 'italic',
+                }}
+              >
+                {skill.when_to_use}
+              </div>
+            </div>
+          )}
+
+          {skill.instructions_md && skill.instructions_md.trim() && (
+            <div>
+              <div
+                className="mb-1"
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                Instructions (SKILL.md)
+              </div>
+              <SkillMarkdown source={skill.instructions_md} />
+            </div>
+          )}
+
+          {skill.examples_md && skill.examples_md.trim() && (
+            <div>
+              <div
+                className="mb-1"
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                Examples
+              </div>
+              <SkillMarkdown source={skill.examples_md} />
+            </div>
+          )}
 
           <div>
             <div

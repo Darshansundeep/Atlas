@@ -163,6 +163,13 @@ export function mountAdmin(app: any, env: AdminEnv): void {
           : 'free',
       deprecated: typeof body.deprecated === 'boolean' ? body.deprecated : false,
       changelog: typeof body.changelog === 'string' ? body.changelog : undefined,
+      when_to_use: typeof body.when_to_use === 'string' ? body.when_to_use : null,
+      instructions_md: typeof body.instructions_md === 'string' ? body.instructions_md : null,
+      examples_md: typeof body.examples_md === 'string' ? body.examples_md : null,
+      supporting_files:
+        body.supporting_files && typeof body.supporting_files === 'object' && !Array.isArray(body.supporting_files)
+          ? (body.supporting_files as Record<string, string>)
+          : undefined,
     });
     if (!res.ok) {
       return c.json({ error: res.error }, res.error === 'version_already_published' ? 409 : 400);
@@ -205,6 +212,13 @@ export function mountAdmin(app: any, env: AdminEnv): void {
           ? body.pricing_tier_min
           : 'free',
       deprecated: typeof body.deprecated === 'boolean' ? body.deprecated : false,
+      when_to_use: typeof body.when_to_use === 'string' ? body.when_to_use : null,
+      instructions_md: typeof body.instructions_md === 'string' ? body.instructions_md : null,
+      examples_md: typeof body.examples_md === 'string' ? body.examples_md : null,
+      supporting_files:
+        body.supporting_files && typeof body.supporting_files === 'object' && !Array.isArray(body.supporting_files)
+          ? (body.supporting_files as Record<string, string>)
+          : undefined,
     });
     if (!res.ok) {
       return c.json(

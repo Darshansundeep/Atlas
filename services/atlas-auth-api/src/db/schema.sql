@@ -115,6 +115,22 @@ CREATE TABLE IF NOT EXISTS skill_versions (
 CREATE INDEX IF NOT EXISTS skill_versions_recent_idx
   ON skill_versions(skill_id, published_at DESC);
 
+-- Spec 022 v0.3 — SKILL.md content. A skill is more than metadata;
+-- it carries the procedural knowledge the agent uses ("how to do this
+-- task"). These columns hold the Anthropic-style SKILL.md fields.
+-- All NULL-able / additive — existing rows survive migration.
+ALTER TABLE skills_catalogue
+  ADD COLUMN IF NOT EXISTS instructions_md   TEXT,
+  ADD COLUMN IF NOT EXISTS when_to_use       TEXT,
+  ADD COLUMN IF NOT EXISTS examples_md       TEXT,
+  ADD COLUMN IF NOT EXISTS supporting_files  JSONB NOT NULL DEFAULT '{}';
+
+ALTER TABLE skill_versions
+  ADD COLUMN IF NOT EXISTS instructions_md   TEXT,
+  ADD COLUMN IF NOT EXISTS when_to_use       TEXT,
+  ADD COLUMN IF NOT EXISTS examples_md       TEXT,
+  ADD COLUMN IF NOT EXISTS supporting_files  JSONB NOT NULL DEFAULT '{}';
+
 -- Spec 011 — Central model catalogue.
 -- Source-of-truth for (provider, model) pricing + capabilities. The
 -- desktop catalogue ships bundled for offline use; this table is the

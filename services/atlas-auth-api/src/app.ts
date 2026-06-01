@@ -312,6 +312,10 @@ export function createApp(env: Env) {
         capabilities: s.capabilities,
         pricing_tier_min: s.pricing_tier_min,
         manifest: s.manifest,
+        when_to_use: s.when_to_use,
+        instructions_md: s.instructions_md,
+        examples_md: s.examples_md,
+        supporting_files: s.supporting_files,
         updated_at: s.updated_at,
       }))
     );

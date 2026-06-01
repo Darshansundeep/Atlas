@@ -248,6 +248,11 @@ export interface SkillRow {
   capabilities: string[];
   pricing_tier_min: 'free' | 'pro' | 'team' | 'enterprise';
   deprecated: boolean;
+  /** Spec 022 v0.3 — SKILL.md content. */
+  when_to_use: string | null;
+  instructions_md: string | null;
+  examples_md: string | null;
+  supporting_files: Record<string, string>;
   created_at: string;
   updated_at: string;
 }
@@ -256,7 +261,9 @@ export async function listSkills(pool: pg.Pool): Promise<SkillRow[]> {
   const { rows } = await pool.query<SkillRow>(
     `SELECT skill_id, version, title, description, category,
             publisher_name, publisher_verified, kind, manifest,
-            capabilities, pricing_tier_min, deprecated, created_at, updated_at
+            capabilities, pricing_tier_min, deprecated,
+            when_to_use, instructions_md, examples_md, supporting_files,
+            created_at, updated_at
        FROM skills_catalogue
        ORDER BY deprecated ASC, publisher_verified DESC, title ASC`
   );
@@ -276,6 +283,11 @@ export interface SkillUpsert {
   capabilities?: string[];
   pricing_tier_min?: 'free' | 'pro' | 'team' | 'enterprise';
   deprecated?: boolean;
+  /** Spec 022 v0.3 — SKILL.md content. */
+  when_to_use?: string | null;
+  instructions_md?: string | null;
+  examples_md?: string | null;
+  supporting_files?: Record<string, string>;
 }
 
 export async function upsertSkill(pool: pg.Pool, s: SkillUpsert): Promise<void> {
@@ -283,8 +295,9 @@ export async function upsertSkill(pool: pg.Pool, s: SkillUpsert): Promise<void> 
     `INSERT INTO skills_catalogue
        (skill_id, version, title, description, category, publisher_name,
         publisher_verified, kind, manifest, capabilities, pricing_tier_min,
-        deprecated, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,NOW())
+        deprecated, when_to_use, instructions_md, examples_md, supporting_files,
+        updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15,$16::jsonb,NOW())
      ON CONFLICT (skill_id) DO UPDATE SET
        version            = EXCLUDED.version,
        title              = EXCLUDED.title,
@@ -297,6 +310,10 @@ export async function upsertSkill(pool: pg.Pool, s: SkillUpsert): Promise<void> 
        capabilities       = EXCLUDED.capabilities,
        pricing_tier_min   = EXCLUDED.pricing_tier_min,
        deprecated         = EXCLUDED.deprecated,
+       when_to_use        = EXCLUDED.when_to_use,
+       instructions_md    = EXCLUDED.instructions_md,
+       examples_md        = EXCLUDED.examples_md,
+       supporting_files   = EXCLUDED.supporting_files,
        updated_at         = NOW()`,
     [
       s.skill_id,
@@ -311,6 +328,10 @@ export async function upsertSkill(pool: pg.Pool, s: SkillUpsert): Promise<void> 
       JSON.stringify(s.capabilities ?? []),
       s.pricing_tier_min ?? 'free',
       s.deprecated ?? false,
+      s.when_to_use ?? null,
+      s.instructions_md ?? null,
+      s.examples_md ?? null,
+      JSON.stringify(s.supporting_files ?? {}),
     ]
   );
 }
@@ -333,6 +354,10 @@ export interface SkillVersionRow {
   manifest: Record<string, unknown>;
   capabilities: string[];
   pricing_tier_min: 'free' | 'pro' | 'team' | 'enterprise';
+  when_to_use: string | null;
+  instructions_md: string | null;
+  examples_md: string | null;
+  supporting_files: Record<string, string>;
   changelog: string | null;
   published_at: string;
 }
@@ -341,7 +366,9 @@ export async function listSkillVersions(pool: pg.Pool, skillId: string): Promise
   const { rows } = await pool.query<SkillVersionRow>(
     `SELECT skill_id, version, title, description, category,
             publisher_name, publisher_verified, kind, manifest,
-            capabilities, pricing_tier_min, changelog, published_at
+            capabilities, pricing_tier_min,
+            when_to_use, instructions_md, examples_md, supporting_files,
+            changelog, published_at
        FROM skill_versions
       WHERE skill_id = $1
       ORDER BY published_at DESC`,
@@ -379,6 +406,10 @@ export async function saveSkillInPlace(pool: pg.Pool, s: SkillUpsert): Promise<{
             capabilities = $9::jsonb,
             pricing_tier_min = $10,
             deprecated = $11,
+            when_to_use = $12,
+            instructions_md = $13,
+            examples_md = $14,
+            supporting_files = $15::jsonb,
             updated_at = NOW()
       WHERE skill_id = $1`,
     [
@@ -393,11 +424,14 @@ export async function saveSkillInPlace(pool: pg.Pool, s: SkillUpsert): Promise<{
       JSON.stringify(s.capabilities ?? []),
       s.pricing_tier_min ?? 'free',
       s.deprecated ?? false,
+      s.when_to_use ?? null,
+      s.instructions_md ?? null,
+      s.examples_md ?? null,
+      JSON.stringify(s.supporting_files ?? {}),
     ]
   );
   // Also patch the matching skill_versions row so the history stays
-  // in sync with the current row's metadata. (Manifest snapshot of a
-  // shipped version is immutable — we only update display fields here.)
+  // in sync with the current row's metadata.
   await pool.query(
     `UPDATE skill_versions
         SET title = $3,
@@ -408,7 +442,11 @@ export async function saveSkillInPlace(pool: pg.Pool, s: SkillUpsert): Promise<{
             kind = $8,
             manifest = $9::jsonb,
             capabilities = $10::jsonb,
-            pricing_tier_min = $11
+            pricing_tier_min = $11,
+            when_to_use = $12,
+            instructions_md = $13,
+            examples_md = $14,
+            supporting_files = $15::jsonb
       WHERE skill_id = $1 AND version = $2`,
     [
       s.skill_id,
@@ -422,6 +460,10 @@ export async function saveSkillInPlace(pool: pg.Pool, s: SkillUpsert): Promise<{
       JSON.stringify(s.manifest),
       JSON.stringify(s.capabilities ?? []),
       s.pricing_tier_min ?? 'free',
+      s.when_to_use ?? null,
+      s.instructions_md ?? null,
+      s.examples_md ?? null,
+      JSON.stringify(s.supporting_files ?? {}),
     ]
   );
   return { ok: true };
@@ -455,8 +497,9 @@ export async function publishNewSkillVersion(
       `INSERT INTO skills_catalogue
          (skill_id, version, title, description, category, publisher_name,
           publisher_verified, kind, manifest, capabilities, pricing_tier_min,
-          deprecated, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,NOW())
+          deprecated, when_to_use, instructions_md, examples_md, supporting_files,
+          updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15,$16::jsonb,NOW())
        ON CONFLICT (skill_id) DO UPDATE SET
          version            = EXCLUDED.version,
          title              = EXCLUDED.title,
@@ -469,6 +512,10 @@ export async function publishNewSkillVersion(
          capabilities       = EXCLUDED.capabilities,
          pricing_tier_min   = EXCLUDED.pricing_tier_min,
          deprecated         = EXCLUDED.deprecated,
+         when_to_use        = EXCLUDED.when_to_use,
+         instructions_md    = EXCLUDED.instructions_md,
+         examples_md        = EXCLUDED.examples_md,
+         supporting_files   = EXCLUDED.supporting_files,
          updated_at         = NOW()`,
       [
         s.skill_id,
@@ -483,14 +530,19 @@ export async function publishNewSkillVersion(
         JSON.stringify(s.capabilities ?? []),
         s.pricing_tier_min ?? 'free',
         s.deprecated ?? false,
+        s.when_to_use ?? null,
+        s.instructions_md ?? null,
+        s.examples_md ?? null,
+        JSON.stringify(s.supporting_files ?? {}),
       ]
     );
     // Append the version-history entry.
     await client.query(
       `INSERT INTO skill_versions
          (skill_id, version, title, description, category, publisher_name,
-          publisher_verified, kind, manifest, capabilities, pricing_tier_min, changelog)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12)`,
+          publisher_verified, kind, manifest, capabilities, pricing_tier_min,
+          when_to_use, instructions_md, examples_md, supporting_files, changelog)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15::jsonb,$16)`,
       [
         s.skill_id,
         s.version,
@@ -503,6 +555,10 @@ export async function publishNewSkillVersion(
         JSON.stringify(s.manifest),
         JSON.stringify(s.capabilities ?? []),
         s.pricing_tier_min ?? 'free',
+        s.when_to_use ?? null,
+        s.instructions_md ?? null,
+        s.examples_md ?? null,
+        JSON.stringify(s.supporting_files ?? {}),
         s.changelog ?? null,
       ]
     );
@@ -544,6 +600,10 @@ export async function rollbackSkillToVersion(
             manifest = $9::jsonb,
             capabilities = $10::jsonb,
             pricing_tier_min = $11,
+            when_to_use = $12,
+            instructions_md = $13,
+            examples_md = $14,
+            supporting_files = $15::jsonb,
             updated_at = NOW()
       WHERE skill_id = $1`,
     [
@@ -558,6 +618,10 @@ export async function rollbackSkillToVersion(
       JSON.stringify(v.manifest),
       JSON.stringify(v.capabilities),
       v.pricing_tier_min,
+      v.when_to_use,
+      v.instructions_md,
+      v.examples_md,
+      JSON.stringify(v.supporting_files ?? {}),
     ]
   );
   return { ok: true };
