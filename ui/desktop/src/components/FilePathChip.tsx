@@ -153,14 +153,20 @@ export const FilePathChip: React.FC<FilePathChipProps> = ({ path }) => {
       onClick={open}
       onContextMenu={reveal}
       title={error ? `${path}\n(${error})` : `${path}\n(right-click to reveal)`}
+      // Inherit color from the parent (user bubble = cream; assistant card
+      // = ink). A translucent currentColor background + border so it reads
+      // on either substrate without explicit colour binding.
+      style={{
+        background: 'color-mix(in srgb, currentColor 10%, transparent)',
+        borderColor: 'color-mix(in srgb, currentColor 28%, transparent)',
+        color: 'inherit',
+      }}
       className={[
         'inline-flex items-center gap-1.5 align-baseline',
         'mx-0.5 px-1.5 py-0.5 rounded-md',
         'text-[0.92em] font-mono leading-tight',
-        'bg-background-muted hover:bg-background-subtle',
-        'text-text-primary hover:text-text-prominent',
-        'border border-border-subtle hover:border-border-default',
-        'transition-colors cursor-pointer',
+        'border',
+        'transition-colors cursor-pointer hover:brightness-110',
         'no-underline',
         error ? 'text-text-error border-border-error' : '',
       ].join(' ')}
