@@ -64,7 +64,12 @@ pub static PLATFORM_EXTENSIONS: Lazy<HashMap<&'static str, PlatformExtensionDef>
                 display_name: "Apps",
                 description:
                     "Create and manage custom Atlas apps through chat. Apps are HTML/CSS/JavaScript and run in sandboxed windows.", // brand-allow
-                default_enabled: true,
+                // Disabled by default at v1: the Apps tab is hidden via
+                // FEATURES.apps in the desktop, and leaving this enabled
+                // caused the agent to volunteer the "apps folder" location
+                // for any document generation, confusing users. Will be
+                // re-enabled when Apps ships as a full feature.
+                default_enabled: false,
                 unprefixed_tools: false,
                 hidden: false,
                 client_factory: |ctx| Box::new(apps::AppsManagerClient::new(ctx).unwrap()),

@@ -212,7 +212,23 @@ export const startGoosed = async (options: StartGoosedOptions): Promise<GoosedRe
   } = options;
 
   const errorLog: string[] = [];
-  const workingDir = dir || os.homedir();
+  /**
+   * Default working directory for agent file output.
+   * Falls through: explicit `dir` arg → ~/Downloads (when it exists) → $HOME.
+   * The Downloads default matches user expectation that generated documents
+   * (PDF / Excel / PPT) land where browser downloads do. Users can override
+   * by clicking the working-dir indicator in the chat input footer.
+   */
+  const defaultWorkingDir = (() => {
+    const downloads = path.join(os.homedir(), 'Downloads');
+    try {
+      if (fs.statSync(downloads).isDirectory()) return downloads;
+    } catch {
+      /* fall through */
+    }
+    return os.homedir();
+  })();
+  const workingDir = dir || defaultWorkingDir;
   const startupTrace = createStartupDiagnostics(diagnosticsDir, workingDir);
 
   if (externalGoosed?.enabled && externalGoosed.url) {
