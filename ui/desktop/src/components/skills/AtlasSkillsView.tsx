@@ -31,6 +31,58 @@ import { EmptyIllustration } from '../atlas-brand/EmptyIllustration';
 import { authBackendUrl, useAuth } from '../../auth';
 import MarkdownContent from '../MarkdownContent';
 
+/**
+ * Spec 022 v0.5 telemetry helpers. Best-effort: silently no-op if the
+ * user is signed-out (no access token in renderer state means the
+ * Bearer header is missing and the backend returns 401, which we
+ * swallow).
+ */
+async function reportInstall(skillId: string, version: string): Promise<void> {
+  try {
+    const tok = await window.atlasAuth.loadRefreshToken().catch(() => null);
+    // We don't actually need the refresh token here — we need the live
+    // access token. AuthContext holds it in renderer memory but isn't
+    // exposed through window.atlasAuth. Skip if not signed in.
+    if (!tok) return;
+    // We need a bearer access token. Reach into the existing api helper.
+    const { authBackendUrl } = await import('../../auth');
+    const accessTok = await getAccessTokenFromMemory();
+    if (!accessTok) return;
+    await fetch(`${authBackendUrl()}/v1/skills/${encodeURIComponent(skillId)}/install`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessTok}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ version }),
+    });
+  } catch (e) {
+    console.warn('[atlas-skills] reportInstall failed', e);
+  }
+}
+
+async function reportUninstall(skillId: string): Promise<void> {
+  try {
+    const tok = await window.atlasAuth.loadRefreshToken().catch(() => null);
+    if (!tok) return;
+    const { authBackendUrl } = await import('../../auth');
+    const accessTok = await getAccessTokenFromMemory();
+    if (!accessTok) return;
+    await fetch(`${authBackendUrl()}/v1/skills/${encodeURIComponent(skillId)}/uninstall`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessTok}` },
+    });
+  } catch (e) {
+    console.warn('[atlas-skills] reportUninstall failed', e);
+  }
+}
+
+// AuthContext keeps the access token in renderer memory. We pull it out
+// via a window-level escape hatch set by AuthProvider — keeps the import
+// graph simple since AtlasSkillsView is not a child of AuthProvider's
+// own subtree.
+function getAccessTokenFromMemory(): string | null {
+  const tok = (window as { __atlasAccessToken?: string | null }).__atlasAccessToken;
+  return tok ?? null;
+}
+
 /** Render skill prose with the same MarkdownContent component used in chat
  *  bubbles — keeps formatting / code highlighting consistent. */
 function SkillMarkdown({ source }: { source: string }) {
@@ -143,6 +195,8 @@ export default function AtlasSkillsView() {
       const next = new Set(installed);
       next.add(skill.skill_id);
       await persistInstalled(next);
+      // Spec 022 v0.5 — telemetry, signed-in users only.
+      void reportInstall(skill.skill_id, skill.version);
       setBusyId(null);
     },
     [installed, persistInstalled]
@@ -154,6 +208,7 @@ export default function AtlasSkillsView() {
       const next = new Set(installed);
       next.delete(skill.skill_id);
       await persistInstalled(next);
+      void reportUninstall(skill.skill_id);
       setBusyId(null);
     },
     [installed, persistInstalled]

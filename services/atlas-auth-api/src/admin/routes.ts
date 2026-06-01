@@ -16,12 +16,16 @@ import { adminHtml } from './page.js';
 import {
   deleteCatalogue,
   deleteSkill,
+  getSkillUsageSummary,
   getStats,
   listActiveSessions,
   listAuditEvents,
   listCatalogue,
+  listInstallationsForSkill,
   listSkillVersions,
   listSkills,
+  listSkillsForUser,
+  listUsageForSkill,
   listUsers,
   publishNewSkillVersion,
   revokeAllForUserAdmin,
@@ -245,6 +249,23 @@ export function mountAdmin(app: any, env: AdminEnv): void {
     }
     return c.json({ ok: true });
   });
+
+  // ----- Spec 022 v0.5: skill usage telemetry (admin views) ------------
+  admin.get('/v1/skills/usage-summary', async (c) =>
+    c.json(await getSkillUsageSummary(pool))
+  );
+
+  admin.get('/v1/skills/:id/installations', async (c) =>
+    c.json(await listInstallationsForSkill(pool, c.req.param('id')))
+  );
+
+  admin.get('/v1/skills/:id/usage', async (c) =>
+    c.json(await listUsageForSkill(pool, c.req.param('id')))
+  );
+
+  admin.get('/v1/users/:id/skills', async (c) =>
+    c.json(await listSkillsForUser(pool, c.req.param('id')))
+  );
 
   app.route('/admin', admin);
 }

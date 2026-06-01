@@ -228,6 +228,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [state.accessToken]);
 
+  // Spec 022 v0.5 — expose the current access token to non-AuthContext
+  // consumers (e.g. the Skills view's telemetry helpers) via a window
+  // escape hatch. The token is rotated/cleared by signing out so the
+  // escape hatch tracks it. The token is short-lived (15-min TTL) and
+  // never persisted to disk.
+  useEffect(() => {
+    (window as { __atlasAccessToken?: string | null }).__atlasAccessToken =
+      state.accessToken;
+    return () => {
+      (window as { __atlasAccessToken?: string | null }).__atlasAccessToken = null;
+    };
+  }, [state.accessToken]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,

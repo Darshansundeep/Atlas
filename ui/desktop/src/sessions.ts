@@ -8,6 +8,7 @@ import {
 import type { FixedExtensionEntry } from './components/ConfigContext';
 import { AppEvents } from './constants/events';
 import { decodeRecipe, Recipe } from './recipe';
+import { applyInstalledSkillsToSession } from './skills/applyInstalledSkills';
 
 export function shouldShowNewChatTitle(session: Session): boolean {
   if (session.recipe) {
@@ -74,6 +75,16 @@ export async function createSession(
     body,
     throwOnError: true,
   });
+
+  // Spec 022 v0.4 — push the user's installed Atlas Skills' SKILL.md
+  // content into the freshly-created agent's system prompt. Best-effort:
+  // silent failure never blocks chat creation.
+  if (newAgent.data?.id) {
+    await applyInstalledSkillsToSession(newAgent.data.id).catch((e) => {
+      console.warn('[atlas-skills] post-startAgent hook failed:', e);
+    });
+  }
+
   return newAgent.data;
 }
 

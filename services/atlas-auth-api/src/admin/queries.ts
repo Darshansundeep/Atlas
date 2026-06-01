@@ -4,7 +4,12 @@
  * Read-only views layered on the existing tables. No new schema.
  */
 
+import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
+
+// Local alias so we can use a `crypto.randomUUID()`-style call where the
+// surrounding helpers expect a namespaced reference.
+const crypto = { randomUUID };
 
 export interface AdminUserRow {
   id: string;
@@ -577,6 +582,177 @@ export async function publishNewSkillVersion(
  * historical row stays in skill_versions; the catalogue row is rewritten
  * to mirror the chosen version. NO new history entry is created.
  */
+// ----- Spec 022 v0.5: telemetry queries --------------------------------
+
+export async function recordInstall(
+  pool: pg.Pool,
+  userId: string,
+  skillId: string,
+  version: string,
+  deviceInstallId?: string | null
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO skill_installations
+       (user_id, skill_id, installed_version, device_install_id)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, skill_id) DO UPDATE
+       SET installed_version = EXCLUDED.installed_version,
+           device_install_id = EXCLUDED.device_install_id,
+           installed_at      = NOW()`,
+    [userId, skillId, version, deviceInstallId ?? null]
+  );
+}
+
+export async function recordUninstall(
+  pool: pg.Pool,
+  userId: string,
+  skillId: string
+): Promise<void> {
+  await pool.query(
+    `DELETE FROM skill_installations WHERE user_id = $1 AND skill_id = $2`,
+    [userId, skillId]
+  );
+}
+
+export async function recordUsage(
+  pool: pg.Pool,
+  userId: string,
+  skillId: string,
+  version: string,
+  triggerPhrase: string | null,
+  deviceInstallId: string | null,
+  context: Record<string, unknown> | null
+): Promise<void> {
+  const eventId = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO skill_usage_events
+       (id, user_id, skill_id, version, trigger_phrase, device_install_id, context)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+    [eventId, userId, skillId, version, triggerPhrase, deviceInstallId, JSON.stringify(context ?? {})]
+  );
+  // Also update the installation row's running totals.
+  await pool.query(
+    `UPDATE skill_installations
+        SET last_used_at = NOW(),
+            invocation_count = invocation_count + 1
+      WHERE user_id = $1 AND skill_id = $2`,
+    [userId, skillId]
+  );
+}
+
+export interface SkillInstallationRow {
+  user_id: string;
+  user_email: string;
+  user_display_name: string | null;
+  skill_id: string;
+  installed_version: string;
+  installed_at: string;
+  last_used_at: string | null;
+  invocation_count: number;
+}
+
+export async function listInstallationsForSkill(
+  pool: pg.Pool,
+  skillId: string,
+  limit = 200
+): Promise<SkillInstallationRow[]> {
+  const { rows } = await pool.query<SkillInstallationRow>(
+    `SELECT i.user_id, u.email AS user_email, u.display_name AS user_display_name,
+            i.skill_id, i.installed_version, i.installed_at, i.last_used_at,
+            i.invocation_count
+       FROM skill_installations i
+       JOIN users u ON u.id = i.user_id
+      WHERE i.skill_id = $1
+      ORDER BY i.last_used_at DESC NULLS LAST, i.installed_at DESC
+      LIMIT $2`,
+    [skillId, limit]
+  );
+  return rows;
+}
+
+export interface SkillUsageEventRow {
+  id: string;
+  user_id: string;
+  user_email: string;
+  skill_id: string;
+  version: string;
+  occurred_at: string;
+  trigger_phrase: string | null;
+  context: Record<string, unknown>;
+}
+
+export async function listUsageForSkill(
+  pool: pg.Pool,
+  skillId: string,
+  limit = 200
+): Promise<SkillUsageEventRow[]> {
+  const { rows } = await pool.query<SkillUsageEventRow>(
+    `SELECT e.id, e.user_id, u.email AS user_email, e.skill_id, e.version,
+            e.occurred_at, e.trigger_phrase, e.context
+       FROM skill_usage_events e
+       JOIN users u ON u.id = e.user_id
+      WHERE e.skill_id = $1
+      ORDER BY e.occurred_at DESC
+      LIMIT $2`,
+    [skillId, limit]
+  );
+  return rows;
+}
+
+export interface SkillSummaryRow {
+  skill_id: string;
+  installs: number;
+  invocations: number;
+  last_used_at: string | null;
+}
+
+export async function getSkillUsageSummary(pool: pg.Pool): Promise<SkillSummaryRow[]> {
+  const { rows } = await pool.query<SkillSummaryRow>(
+    `SELECT c.skill_id,
+            COALESCE(i_counts.installs, 0)::int      AS installs,
+            COALESCE(e_counts.invocations, 0)::int   AS invocations,
+            i_counts.last_used_at
+       FROM skills_catalogue c
+       LEFT JOIN (
+         SELECT skill_id, COUNT(*)::int AS installs, MAX(last_used_at) AS last_used_at
+           FROM skill_installations
+          GROUP BY skill_id
+       ) i_counts ON i_counts.skill_id = c.skill_id
+       LEFT JOIN (
+         SELECT skill_id, COUNT(*)::int AS invocations
+           FROM skill_usage_events
+          GROUP BY skill_id
+       ) e_counts ON e_counts.skill_id = c.skill_id
+      ORDER BY invocations DESC, installs DESC`
+  );
+  return rows;
+}
+
+export interface UserSkillRow {
+  skill_id: string;
+  skill_title: string;
+  installed_version: string;
+  installed_at: string;
+  last_used_at: string | null;
+  invocation_count: number;
+}
+
+export async function listSkillsForUser(
+  pool: pg.Pool,
+  userId: string
+): Promise<UserSkillRow[]> {
+  const { rows } = await pool.query<UserSkillRow>(
+    `SELECT i.skill_id, c.title AS skill_title, i.installed_version,
+            i.installed_at, i.last_used_at, i.invocation_count
+       FROM skill_installations i
+       JOIN skills_catalogue c ON c.skill_id = i.skill_id
+      WHERE i.user_id = $1
+      ORDER BY i.last_used_at DESC NULLS LAST, i.installed_at DESC`,
+    [userId]
+  );
+  return rows;
+}
+
 export async function rollbackSkillToVersion(
   pool: pg.Pool,
   skillId: string,

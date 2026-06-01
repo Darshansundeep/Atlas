@@ -131,6 +131,41 @@ ALTER TABLE skill_versions
   ADD COLUMN IF NOT EXISTS examples_md       TEXT,
   ADD COLUMN IF NOT EXISTS supporting_files  JSONB NOT NULL DEFAULT '{}';
 
+-- Spec 022 v0.5 — install + usage telemetry.
+-- Tracks which signed-in users have which skills (skill_installations)
+-- and individual invocation events (skill_usage_events).
+-- BYOK / signed-out users are never recorded here — Constitution
+-- Principle I: their activity never traverses Atlas infrastructure.
+CREATE TABLE IF NOT EXISTS skill_installations (
+  user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  skill_id           TEXT NOT NULL REFERENCES skills_catalogue(skill_id) ON DELETE CASCADE,
+  installed_version  TEXT NOT NULL,
+  installed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_used_at       TIMESTAMPTZ,
+  invocation_count   INTEGER NOT NULL DEFAULT 0,
+  device_install_id  UUID,
+  PRIMARY KEY (user_id, skill_id)
+);
+CREATE INDEX IF NOT EXISTS skill_installations_skill_idx
+  ON skill_installations(skill_id);
+CREATE INDEX IF NOT EXISTS skill_installations_recent_idx
+  ON skill_installations(skill_id, last_used_at DESC NULLS LAST);
+
+CREATE TABLE IF NOT EXISTS skill_usage_events (
+  id                UUID PRIMARY KEY,
+  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  skill_id          TEXT NOT NULL REFERENCES skills_catalogue(skill_id) ON DELETE CASCADE,
+  version           TEXT NOT NULL,
+  occurred_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  trigger_phrase    TEXT,
+  device_install_id UUID,
+  context           JSONB
+);
+CREATE INDEX IF NOT EXISTS skill_usage_events_skill_recent_idx
+  ON skill_usage_events(skill_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS skill_usage_events_user_recent_idx
+  ON skill_usage_events(user_id, occurred_at DESC);
+
 -- Spec 011 — Central model catalogue.
 -- Source-of-truth for (provider, model) pricing + capabilities. The
 -- desktop catalogue ships bundled for offline use; this table is the

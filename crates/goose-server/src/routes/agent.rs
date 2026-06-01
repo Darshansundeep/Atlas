@@ -82,6 +82,17 @@ pub struct StopAgentRequest {
     session_id: String,
 }
 
+/// Spec 022 v0.4 — Atlas Skills runtime hookup.
+/// Adds a named addendum to the system prompt for the named session.
+/// Re-sending the same `key` overwrites the previous value (so reinstall
+/// of a skill is idempotent). Empty / null instruction removes it.
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct ExtendSystemPromptRequest {
+    pub session_id: String,
+    pub key: String,
+    pub instruction: String,
+}
+
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct RestartAgentRequest {
     session_id: String,
@@ -810,6 +821,28 @@ async fn stop_agent(
     Ok(StatusCode::OK)
 }
 
+/// Spec 022 v0.4 — register a named system-prompt addendum on the
+/// agent for the named session. Used by the Atlas desktop to feed
+/// each installed skill's SKILL.md (instructions_md) into the running
+/// agent so the model can apply it. Idempotent — re-sending the same
+/// `key` replaces the previous value.
+async fn agent_extend_system_prompt(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<ExtendSystemPromptRequest>,
+) -> Result<StatusCode, ErrorResponse> {
+    let agent = state
+        .get_agent_for_route(payload.session_id.clone())
+        .await
+        .map_err(|status| ErrorResponse {
+            message: format!("Failed to get agent for session {}", payload.session_id),
+            status,
+        })?;
+    agent
+        .extend_system_prompt(payload.key, payload.instruction)
+        .await;
+    Ok(StatusCode::OK)
+}
+
 async fn restart_agent_internal(
     state: &Arc<AppState>,
     session_id: &str,
@@ -1362,6 +1395,7 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route("/agent/remove_extension", post(agent_remove_extension))
         .route("/agent/set_container", post(set_container))
         .route("/agent/stop", post(stop_agent))
+        .route("/agent/extend_system_prompt", post(agent_extend_system_prompt))
         .with_state(state)
 }
 

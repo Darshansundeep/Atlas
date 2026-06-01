@@ -26,7 +26,7 @@ import { pickIdp } from './idp/index.js';
 import { emit as auditEmit } from './audit.js';
 import { stubAuthStartHtml } from './stub-page.js';
 import { mountAdmin } from './admin/routes.js';
-import { listSkills } from './admin/queries.js';
+import { listSkills, recordInstall, recordUninstall, recordUsage } from './admin/queries.js';
 import {
   entitlementsFor,
   getSubscription,
@@ -319,6 +319,49 @@ export function createApp(env: Env) {
         updated_at: s.updated_at,
       }))
     );
+  });
+
+  // Spec 022 v0.5 — install / uninstall / usage telemetry. Bearer-authed
+  // so only signed-in users are recorded. BYOK / signed-out users never
+  // hit these endpoints (Constitution Principle I).
+  app.post('/v1/skills/:id/install', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const skillId = c.req.param('id');
+    const body = (await c.req.json().catch(() => null)) as { version?: string } | null;
+    if (!body || typeof body.version !== 'string') {
+      return c.json({ error: 'invalid_request', detail: 'version required' }, 400);
+    }
+    await recordInstall(pool, claims.sub, skillId, body.version, claims.device_install_id ?? null);
+    return c.json({ ok: true });
+  });
+
+  app.post('/v1/skills/:id/uninstall', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    await recordUninstall(pool, claims.sub, c.req.param('id'));
+    return c.json({ ok: true });
+  });
+
+  app.post('/v1/skills/:id/used', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const skillId = c.req.param('id');
+    const body = (await c.req.json().catch(() => null)) as {
+      version?: string;
+      trigger_phrase?: string;
+      context?: Record<string, unknown>;
+    } | null;
+    if (!body || typeof body.version !== 'string') {
+      return c.json({ error: 'invalid_request', detail: 'version required' }, 400);
+    }
+    await recordUsage(
+      pool,
+      claims.sub,
+      skillId,
+      body.version,
+      typeof body.trigger_phrase === 'string' ? body.trigger_phrase : null,
+      claims.device_install_id ?? null,
+      body.context ?? null
+    );
+    return c.json({ ok: true });
   });
 
   app.get('/v1/subscription', requireAccess, async (c) => {

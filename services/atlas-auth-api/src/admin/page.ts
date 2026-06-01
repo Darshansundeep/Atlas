@@ -421,10 +421,19 @@ export function adminHtml(): string {
       </section>
 
       <section class="page" id="page-skills">
+        <!-- Spec 022 v0.5 — usage summary across the catalogue -->
+        <div class="panel" style="margin-bottom: 18px;">
+          <div class="panel-header">
+            <h2>Usage summary</h2>
+            <span class="hint">installs + invocations per skill (signed-in users only)</span>
+          </div>
+          <div id="skills-usage-summary"></div>
+        </div>
+
         <div class="panel">
           <div class="panel-header">
             <h2>Skills catalogue</h2>
-            <span class="hint">spec 022 v0.2 — versioned, editable</span>
+            <span class="hint">spec 022 v0.3 — SKILL.md content, versioned, editable</span>
           </div>
           <div id="skills-table"></div>
         </div>
@@ -876,9 +885,33 @@ export function adminHtml(): string {
   // Cancel-edit button
   document.getElementById('skills-form-cancel').addEventListener('click', resetSkillForm);
 
+  async function loadSkillsUsageSummary() {
+    try {
+      const summary = await api('/admin/v1/skills/usage-summary');
+      if (summary.length === 0) {
+        document.getElementById('skills-usage-summary').innerHTML = '<div class="empty">No usage yet — signed-in users haven\\'t installed or run any skills.</div>';
+        return;
+      }
+      const head = '<thead><tr>' +
+        '<th>Skill</th><th style="text-align:right">Installs</th><th style="text-align:right">Invocations</th><th>Last used</th>' +
+        '</tr></thead>';
+      const rows = summary.map(s =>
+        '<tr>' +
+          '<td class="mono">' + escape(s.skill_id) + '</td>' +
+          '<td style="text-align:right" class="tabular-nums">' + s.installs + '</td>' +
+          '<td style="text-align:right" class="tabular-nums">' + s.invocations + '</td>' +
+          '<td>' + (s.last_used_at ? fmtDate(s.last_used_at) : '<span class="hint">never</span>') + '</td>' +
+        '</tr>'
+      ).join('');
+      document.getElementById('skills-usage-summary').innerHTML = '<table>' + head + '<tbody>' + rows + '</tbody></table>';
+    } catch (e) {
+      console.error('loadSkillsUsageSummary failed', e);
+    }
+  }
+
   async function loadAll() {
     try {
-      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills()]);
+      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary()]);
     } catch (e) {
       if (e.status === 401) {
         sessionStorage.removeItem('atlas_admin_token');

@@ -778,6 +778,12 @@ export function useChatStream({
         showExtensionLoadResults(extensionResults);
         window.dispatchEvent(new CustomEvent(AppEvents.SESSION_EXTENSIONS_LOADED));
 
+        // Spec 022 v0.4 — re-apply installed Atlas Skills' SKILL.md
+        // content to the resumed agent. Best-effort, never blocks.
+        void import('../skills/applyInstalledSkills').then((m) =>
+          m.applyInstalledSkillsToSession(sessionId).catch(() => {})
+        );
+
         const pendingRequestId = pendingReattachRequestIdRef.current;
         const reattachedToActiveRequest = activeRequestIdRef.current !== null;
 
