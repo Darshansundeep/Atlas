@@ -6,7 +6,7 @@
  * — this card mounts that screen inside a modal for one-click access.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Dialog, DialogContent } from '../../ui/dialog';
@@ -18,6 +18,13 @@ import { AtlasMark } from '../../atlas-brand/AtlasMark';
 export default function AtlasAccountCard() {
   const { user, subscription, initializing, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+
+  // Close the sign-in dialog automatically once auth completes. Without
+  // this, PasteCodeScreen's "Finishing sign-in…" spinner stays up after
+  // acceptGrant updates AuthContext.
+  useEffect(() => {
+    if (user && open) setOpen(false);
+  }, [user, open]);
 
   // Premium card: subtle amber glow on the top edge to call attention.
   return (

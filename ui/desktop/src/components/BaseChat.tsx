@@ -432,42 +432,47 @@ export default function BaseChat({
             paddingX={6}
             paddingY={0}
           >
-            {recipe?.title && (
-              <div className="sticky top-0 z-10 bg-background-primary px-0 -mx-6 mb-6 pt-6">
-                <RecipeHeader title={recipe.title} />
-              </div>
-            )}
+            {/* Centred reading column. Caps line length on wide windows so
+                user bubbles don't get flung to the extreme right edge.
+                820px ≈ Claude / ChatGPT's chat column. */}
+            <div className="mx-auto w-full max-w-[820px]">
+              {recipe?.title && (
+                <div className="sticky top-0 z-10 bg-background-primary px-0 -mx-6 mb-6 pt-6">
+                  <RecipeHeader title={recipe.title} />
+                </div>
+              )}
 
-            {recipe && (
-              <div className={hasStartedUsingRecipe ? 'mb-6' : ''}>
-                <RecipeActivities
-                  append={(text: string) => handleSubmit({ msg: text, images: [] })}
-                  activities={Array.isArray(recipe.activities) ? recipe.activities : null}
-                  title={recipe.title}
-                  parameterValues={session?.user_recipe_values || {}}
-                />
-              </div>
-            )}
-
-            {messages.length > 0 || recipe ? (
-              <>
-                <SearchView>
-                  <ProgressiveMessageList
-                    messages={messages}
-                    chat={{ sessionId }}
-                    toolCallNotifications={toolCallNotifications}
+              {recipe && (
+                <div className={hasStartedUsingRecipe ? 'mb-6' : ''}>
+                  <RecipeActivities
                     append={(text: string) => handleSubmit({ msg: text, images: [] })}
-                    isUserMessage={(m: Message) => m.role === 'user'}
-                    isStreamingMessage={chatState !== ChatState.Idle}
-                    onRenderingComplete={handleRenderingComplete}
-                    onMessageUpdate={onMessageUpdate}
-                    submitElicitationResponse={submitElicitationResponse}
+                    activities={Array.isArray(recipe.activities) ? recipe.activities : null}
+                    title={recipe.title}
+                    parameterValues={session?.user_recipe_values || {}}
                   />
-                </SearchView>
+                </div>
+              )}
 
-                <div className="block h-8" />
-              </>
-            ) : null}
+              {messages.length > 0 || recipe ? (
+                <>
+                  <SearchView>
+                    <ProgressiveMessageList
+                      messages={messages}
+                      chat={{ sessionId }}
+                      toolCallNotifications={toolCallNotifications}
+                      append={(text: string) => handleSubmit({ msg: text, images: [] })}
+                      isUserMessage={(m: Message) => m.role === 'user'}
+                      isStreamingMessage={chatState !== ChatState.Idle}
+                      onRenderingComplete={handleRenderingComplete}
+                      onMessageUpdate={onMessageUpdate}
+                      submitElicitationResponse={submitElicitationResponse}
+                    />
+                  </SearchView>
+
+                  <div className="block h-8" />
+                </>
+              ) : null}
+            </div>
           </ScrollArea>
 
         </div>
@@ -477,7 +482,7 @@ export default function BaseChat({
             (was: absolute bottom-1 inside the scroll-area parent — visually
              collided with the top edge of ChatInputCard during streaming). */}
         {chatState !== ChatState.Idle && (
-          <div className="mx-4 mb-2 px-2">
+          <div className="mx-auto mb-2 px-2 w-[calc(100%-2rem)] max-w-[820px]">
             <LoadingGoose
               chatState={chatState}
               onCancel={stopStreaming}
@@ -493,7 +498,9 @@ export default function BaseChat({
 
         <ChatInputCard
           className={cn(
-            'relative z-10 mx-4 mb-4',
+            // Match the chat-column max-width so the input sits below the
+            // conversation rather than stretching to window edge.
+            'relative z-10 mx-auto mb-4 w-[calc(100%-2rem)] max-w-[820px]',
             !disableAnimation && 'animate-[fadein_400ms_ease-in_forwards]'
           )}
         >

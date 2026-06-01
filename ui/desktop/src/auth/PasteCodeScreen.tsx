@@ -29,9 +29,12 @@ export function PasteCodeScreen({ onSubmit, onCancel, compact = false }: PasteCo
     setSubmitting(true);
     setError(null);
     const res = await onSubmit(trimmed);
+    // Reset regardless — on success the parent unmounts us anyway, but
+    // belt-and-suspenders in case the modal stays open for a re-render
+    // tick. (Bug: spinner used to be stuck on "Finishing sign-in…".)
+    setSubmitting(false);
     if (!res.ok) {
       setError(humanizeError(res.error));
-      setSubmitting(false);
     }
   }, [code, onSubmit]);
 
