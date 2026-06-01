@@ -32,7 +32,7 @@ import { createClient, createConfig } from './api/client';
 import { expandTilde } from './utils/pathUtils';
 import log from './utils/logger';
 import { ensureWinShims } from './utils/winShims';
-import { addRecentDir, loadRecentDirs } from './utils/recentDirs';
+import { addRecentDir, defaultDirForNewChat, loadRecentDirs } from './utils/recentDirs';
 import { formatAppName, errorMessage, formatErrorForLogging } from './utils/conversionUtils';
 import { IDENTITY } from './branding';
 import { buildAboutPanelOptions } from './branding/about-options';
@@ -403,8 +403,7 @@ if (process.platform !== 'darwin') {
         // If it's a bot/recipe URL, handle it directly by creating a new window
         if (parsedUrl.hostname === 'bot' || parsedUrl.hostname === 'recipe') {
           app.whenReady().then(async () => {
-            const recentDirs = loadRecentDirs();
-            const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+            const openDir = defaultDirForNewChat();
 
             const deeplinkData = parseRecipeDeeplink(protocolUrl);
             const scheduledJobId = parsedUrl.searchParams.get('scheduledJob');
@@ -422,8 +421,7 @@ if (process.platform !== 'darwin') {
         // Handle new-session URL by creating a fresh chat window
         if (parsedUrl.hostname === 'new-session') {
           app.whenReady().then(async () => {
-            const recentDirs = loadRecentDirs();
-            const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+            const openDir = defaultDirForNewChat();
             await createChat(app, { dir: openDir || undefined });
           });
           return;
@@ -431,8 +429,7 @@ if (process.platform !== 'darwin') {
 
         if (parsedUrl.hostname === 'resume') {
           app.whenReady().then(async () => {
-            const recentDirs = loadRecentDirs();
-            const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+            const openDir = defaultDirForNewChat();
             await createResumeChatWindow(parsedUrl, openDir || undefined);
           });
           return;
@@ -492,8 +489,7 @@ async function handleProtocolUrl(url: string) {
   if (!url) return;
 
   const parsedUrl = new URL(url);
-  const recentDirs = loadRecentDirs();
-  const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+  const openDir = defaultDirForNewChat();
 
   if (parsedUrl.hostname === 'new-session') {
     await createChat(app, { dir: openDir || undefined });
@@ -530,8 +526,7 @@ async function handleProtocolUrl(url: string) {
 }
 
 async function processProtocolUrl(url: string, parsedUrl: URL, window: BrowserWindow) {
-  const recentDirs = loadRecentDirs();
-  const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+  const openDir = defaultDirForNewChat();
 
   if (parsedUrl.hostname === 'extension') {
     window.webContents.send('add-extension', url);
@@ -566,8 +561,7 @@ app.on('open-url', async (_event, url) => {
 
     await app.whenReady();
 
-    const recentDirs = loadRecentDirs();
-    const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+    const openDir = defaultDirForNewChat();
 
     // Spec 002 — atlas://auth?code=…&state=… deep link from sign-in browser.
     // Route the code into the in-flight renderer attempt; never log values.
@@ -1365,8 +1359,7 @@ const showWindow = async () => {
 
   if (windows.length === 0) {
     log.info('No windows are open, creating a new one...');
-    const recentDirs = loadRecentDirs();
-    const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
+    const openDir = defaultDirForNewChat();
     await createChat(app, { dir: openDir || undefined });
     return;
   }

@@ -1,9 +1,37 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { app } from 'electron';
 
 const RECENT_DIRS_FILE = path.join(app.getPath('userData'), 'recent-dirs.json');
 const MAX_RECENT_DIRS = 10;
+
+/**
+ * Resolve the default working directory for a NEW chat (not a session
+ * resume — those keep their saved working_dir).
+ *
+ * Order:
+ *   1. ~/Downloads (when it exists). Matches user expectation that
+ *      generated documents land where browser downloads do.
+ *   2. The most-recent recent-dir (if any).
+ *   3. $HOME (last-resort fallback).
+ *
+ * Recent dirs are NOT auto-preferred any more — they were before, which
+ * caused generated documents to land in the wrong folder once a user
+ * had opened a chat in any other directory.
+ */
+export function defaultDirForNewChat(): string {
+  const home = os.homedir();
+  const downloads = path.join(home, 'Downloads');
+  try {
+    if (fs.statSync(downloads).isDirectory()) return downloads;
+  } catch {
+    /* fall through */
+  }
+  const recents = loadRecentDirs();
+  if (recents.length > 0) return recents[0];
+  return home;
+}
 
 interface RecentDirs {
   dirs: string[];
