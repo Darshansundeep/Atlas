@@ -33,8 +33,13 @@ import {
   createInvitation,
   createTeamOrganization,
   listMyOrganizations,
+  listPendingInvitations,
+  removeMember,
+  revokeInvitation,
   userIsMemberWithRole,
 } from './admin/invitations.js';
+import { getOrganization, listMembers } from './admin/organizations.js';
+import { getMailer, inviteEmail } from './mailer.js';
 import {
   decryptApiKey,
   getToolProvider,
@@ -64,6 +69,12 @@ interface Env {
   CORS_ORIGINS?: string;
   ADMIN_TOKEN?: string;
   TOOL_KEY_ENCRYPTION_PASSPHRASE?: string;
+  // Spec 050 v0.2.1 — Email-based invitations. RESEND_API_KEY enables
+  // real send via Resend.com. Otherwise the mailer logs to stdout
+  // (console-stub) and the backend keeps returning the code so the
+  // owner can paste-share it manually.
+  RESEND_API_KEY?: string;
+  MAIL_FROM_ADDRESS?: string; // e.g. "Atlas <invites@atlas.netgroup.ai>"
 }
 
 type Vars = {
@@ -618,10 +629,43 @@ export function createApp(env: Env) {
       email: body.email,
       role: body.role ?? 'member',
     });
+
+    // Send the invite email. Stub-mailer in dev (logs to stdout); Resend
+    // in prod when RESEND_API_KEY is set. The code is always returned in
+    // the response so the owner can paste-share if email delivery fails.
+    let emailDelivery: { ok: boolean; provider: string; error?: string } = {
+      ok: false, provider: 'skipped',
+    };
+    try {
+      const org = await getOrganization(pool, orgId);
+      const orgName = org?.display_name ?? 'an Atlas team';
+      const fromAddress = env.MAIL_FROM_ADDRESS
+        ?? 'Atlas <onboarding@resend.dev>'; // Resend's sandbox domain
+      const mailer = getMailer({ RESEND_API_KEY: env.RESEND_API_KEY });
+      const result = await mailer.send(
+        inviteEmail({
+          inviteeEmail: body.email,
+          orgName,
+          inviterEmail: claims.email,
+          code: inv.code,
+          expiresAt: inv.expires_at,
+          fromAddress,
+        })
+      );
+      emailDelivery = {
+        ok: result.ok,
+        provider: result.provider,
+        ...(result.error ? { error: result.error } : {}),
+      };
+    } catch (e) {
+      emailDelivery = { ok: false, provider: 'error', error: (e as Error).message };
+    }
+
     return c.json({
       id: inv.id,
-      code: inv.code,                   // ONLY returned at creation time
+      code: inv.code,                   // paste-share fallback always works
       expires_at: inv.expires_at,
+      email_delivery: emailDelivery,
     });
   });
 
@@ -642,6 +686,49 @@ export function createApp(env: Env) {
       organization_id: result.organization_id,
       role: result.role,
     });
+  });
+
+  // Detail view: members + pending invites for an org (owner/admin only).
+  app.get('/v1/organizations/:id', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const orgId = c.req.param('id');
+    const role = await userIsMemberWithRole(pool, claims.sub, orgId);
+    if (!role) return c.json({ error: 'forbidden' }, 403);
+    const [members, pending] = await Promise.all([
+      listMembers(pool, orgId),
+      role === 'owner' || role === 'admin'
+        ? listPendingInvitations(pool, orgId)
+        : Promise.resolve([]),
+    ]);
+    return c.json({ members, pending_invitations: pending, viewer_role: role });
+  });
+
+  // Remove a member from an org. Owner/admin only; can't remove last owner.
+  app.delete('/v1/organizations/:id/members/:userId', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const orgId = c.req.param('id');
+    const targetUserId = c.req.param('userId');
+    const role = await userIsMemberWithRole(pool, claims.sub, orgId);
+    if (role !== 'owner' && role !== 'admin') {
+      return c.json({ error: 'forbidden', detail: 'owner or admin required' }, 403);
+    }
+    const result = await removeMember(pool, orgId, targetUserId);
+    if (!result.ok) return c.json({ error: result.reason ?? 'failed' }, 400);
+    return c.json({ ok: true });
+  });
+
+  // Cancel a pending invitation.
+  app.delete('/v1/organizations/:id/invitations/:invId', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const orgId = c.req.param('id');
+    const invId = c.req.param('invId');
+    const role = await userIsMemberWithRole(pool, claims.sub, orgId);
+    if (role !== 'owner' && role !== 'admin') {
+      return c.json({ error: 'forbidden' }, 403);
+    }
+    const revoked = await revokeInvitation(pool, invId, orgId);
+    if (!revoked) return c.json({ error: 'not_found' }, 404);
+    return c.json({ ok: true });
   });
 
   // Switch the access token's active org. Re-signs immediately; client

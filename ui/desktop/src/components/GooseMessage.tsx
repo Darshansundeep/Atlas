@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import ImagePreview from './ImagePreview';
 import { formatMessageTimestamp } from '../utils/timeUtils';
 import MarkdownContent from './MarkdownContent';
@@ -53,6 +53,17 @@ export default function GooseMessage({
 
   const timestamp = useMemo(() => formatMessageTimestamp(message.created), [message.created]);
   const toolRequests = getToolRequests(message);
+
+  // Spec 022 v0.6 — fire a "used" telemetry event once per (session, skill)
+  // when this message contains tool requests. The recorder dedups in its
+  // own Set so re-renders are safe.
+  useEffect(() => {
+    if (toolRequests.length === 0) return;
+    void import('../skills/recordSkillsUsage').then((m) =>
+      m.recordSkillsUsageForSession(sessionId).catch(() => {})
+    );
+  }, [sessionId, toolRequests.length]);
+
   const messageIndex = messages.findIndex((msg) => msg.id === message.id);
   const toolConfirmationContent = getToolConfirmationContent(message);
   const elicitationContent = getElicitationContent(message);

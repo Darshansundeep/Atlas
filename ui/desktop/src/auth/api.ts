@@ -212,6 +212,67 @@ export async function acceptOrgInvitation(
   return (await res.json()) as never;
 }
 
+export interface OrgMember {
+  user_id: string;
+  organization_id: string;
+  role: OrgRole;
+  email: string | null;
+  display_name: string | null;
+  joined_at: string;
+}
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: OrgRole;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface OrgDetail {
+  members: OrgMember[];
+  pending_invitations: PendingInvite[];
+  viewer_role: OrgRole;
+}
+
+export async function getOrgDetail(
+  accessToken: string,
+  orgId: string
+): Promise<OrgDetail> {
+  const res = await fetch(`${authBackendUrl()}/v1/organizations/${orgId}`, {
+    headers: { authorization: `Bearer ${accessToken}`, 'x-atlas-request-id': newReqId() },
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as never;
+}
+
+export async function removeOrgMember(
+  accessToken: string,
+  orgId: string,
+  userId: string
+): Promise<void> {
+  const res = await fetch(`${authBackendUrl()}/v1/organizations/${orgId}/members/${userId}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${accessToken}`, 'x-atlas-request-id': newReqId() },
+  });
+  if (!res.ok) throw await readError(res);
+}
+
+export async function revokeOrgInvitation(
+  accessToken: string,
+  orgId: string,
+  inviteId: string
+): Promise<void> {
+  const res = await fetch(
+    `${authBackendUrl()}/v1/organizations/${orgId}/invitations/${inviteId}`,
+    {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${accessToken}`, 'x-atlas-request-id': newReqId() },
+    }
+  );
+  if (!res.ok) throw await readError(res);
+}
+
 export async function switchActiveOrg(
   accessToken: string,
   organizationId: string

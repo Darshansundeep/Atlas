@@ -22,7 +22,8 @@ import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { verifyAtlasAccess } from './auth.js';
-import { preflight, capFor, todaysSpend, type Tier, type QuotaEnv } from './quota.js';
+import { preflight, orgPreflight, capFor, todaysSpend, type Tier, type QuotaEnv } from './quota.js';
+import type { AtlasClaims } from './auth.js';
 import { forwardAnthropic } from './providers/anthropic.js';
 import { computeCost, getCataloguePrice, recordUsage } from './usage.js';
 
@@ -70,33 +71,44 @@ export function createApp(env: Env) {
   });
 
   app.get('/v1/quota', async (c) => {
-    const claims = c.get('claims' as never) as { sub: string; sub_tier: Tier };
+    const claims = c.get('claims' as never) as AtlasClaims;
     const tier = claims.sub_tier;
     const cap = capFor(tier, quotaEnv);
     const used = await todaysSpend(pool, claims.sub);
+    const orgInfo = claims.org
+      ? await orgPreflight(pool, claims.org.id).then((r) => ({
+          id: claims.org!.id,
+          monthly_budget_usd: r.cap,
+          spent_mtd_usd: r.spent_mtd,
+        }))
+      : null;
     return c.json({
       tier,
       daily_cap_usd: cap,
       used_today_usd: used,
       remaining_today_usd: Math.max(0, cap - used),
+      organization: orgInfo,
     });
   });
 
   // --- POST /v1/messages -----------------------------------------------------
   app.post('/v1/messages', async (c) => {
-    const claims = c.get('claims' as never) as { sub: string; sub_tier: Tier };
+    const claims = c.get('claims' as never) as AtlasClaims;
     const body = (await c.req.json().catch(() => null)) as
       | { model?: string; stream?: boolean }
       | null;
     if (!body || typeof body.model !== 'string') {
       return c.json({ error: 'invalid_request', detail: 'model required' }, 400);
     }
+    const orgId = claims.org?.id ?? null;
 
     // Quota preflight — NON-NEGOTIABLE (Principle V).
+    // Two-tier check: user-tier daily cap AND org monthly budget (050 v0.3).
     const pre = await preflight(pool, claims.sub, quotaEnv);
     if (!pre.ok) {
       await recordUsage(pool, {
         userId: claims.sub,
+        organizationId: orgId,
         provider: 'anthropic',
         model: body.model,
         inputTokens: 0,
@@ -116,6 +128,31 @@ export function createApp(env: Env) {
       );
     }
 
+    if (orgId) {
+      const orgPre = await orgPreflight(pool, orgId);
+      if (!orgPre.ok) {
+        await recordUsage(pool, {
+          userId: claims.sub,
+          organizationId: orgId,
+          provider: 'anthropic',
+          model: body.model,
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          status: 'org_budget_exceeded',
+          requestId: c.req.header('x-atlas-request-id') ?? randomUUID(),
+        }).catch(() => {});
+        return c.json(
+          {
+            error: 'org_budget_exceeded',
+            monthly_budget_usd: orgPre.cap,
+            spent_mtd_usd: orgPre.spent_mtd,
+          },
+          402
+        );
+      }
+    }
+
     if (!env.ANTHROPIC_API_KEY) {
       return c.json({ error: 'provider_not_configured', provider: 'anthropic' }, 503);
     }
@@ -133,6 +170,7 @@ export function createApp(env: Env) {
       const cost = computeCost(upstream.usage.input_tokens, upstream.usage.output_tokens, price);
       await recordUsage(pool, {
         userId: claims.sub,
+        organizationId: orgId,
         provider: 'anthropic',
         model: body.model,
         inputTokens: upstream.usage.input_tokens,

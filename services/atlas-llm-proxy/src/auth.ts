@@ -15,6 +15,9 @@ export interface AtlasClaims {
   email: string;
   sub_tier: 'free' | 'pro' | 'team' | 'enterprise';
   device_install_id: string;
+  // Spec 050 v0.1 — active org context, set by auth backend at token
+  // issuance (defaults to personal org).
+  org?: { id: string; role: 'owner' | 'admin' | 'member' | 'viewer' };
 }
 
 export async function verifyAtlasAccess(token: string, secret: string): Promise<AtlasClaims> {

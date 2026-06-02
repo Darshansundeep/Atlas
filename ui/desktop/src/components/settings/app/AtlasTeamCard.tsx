@@ -24,18 +24,23 @@ import {
   acceptOrgInvitation,
   createOrgInvitation,
   createTeamOrg,
+  getOrgDetail,
   listMyOrgs,
+  removeOrgMember,
+  revokeOrgInvitation,
   switchActiveOrg,
   type MyOrgsResponse,
+  type OrgDetail,
   type OrgMembership,
 } from '../../../auth/api';
 import { useAuth } from '../../../auth';
 
-type Mode = 'idle' | 'creating' | 'inviting' | 'accepting' | 'switching';
+type Mode = 'idle' | 'creating' | 'inviting' | 'accepting' | 'switching' | 'removing' | 'revoking';
 
 export default function AtlasTeamCard() {
   const { user, accessToken, applyAccessToken } = useAuth();
   const [data, setData] = useState<MyOrgsResponse | null>(null);
+  const [details, setDetails] = useState<Record<string, OrgDetail>>({});
   const [mode, setMode] = useState<Mode>('idle');
   const [err, setErr] = useState<string | null>(null);
   const [createName, setCreateName] = useState('');
@@ -49,6 +54,21 @@ export default function AtlasTeamCard() {
     try {
       const me = await listMyOrgs(accessToken);
       setData(me);
+      // Fetch member + pending-invite detail for every TEAM org.
+      const teamOrgs = me.organizations.filter((o) => !o.is_personal);
+      const detailEntries = await Promise.all(
+        teamOrgs.map(async (o) => {
+          try {
+            const d = await getOrgDetail(accessToken, o.id);
+            return [o.id, d] as const;
+          } catch { return null; }
+        })
+      );
+      const next: Record<string, OrgDetail> = {};
+      for (const e of detailEntries) {
+        if (e) next[e[0]] = e[1];
+      }
+      setDetails(next);
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -91,6 +111,27 @@ export default function AtlasTeamCard() {
     try {
       await acceptOrgInvitation(accessToken, acceptCode.trim());
       setAcceptCode('');
+      await refresh();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setMode('idle'); }
+  }
+
+  async function onRemove(orgId: string, userId: string, email: string | null) {
+    if (!accessToken) return;
+    if (!window.confirm(`Remove ${email ?? 'this member'} from the team?`)) return;
+    setMode('removing'); setErr(null);
+    try {
+      await removeOrgMember(accessToken, orgId, userId);
+      await refresh();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setMode('idle'); }
+  }
+
+  async function onRevoke(orgId: string, inviteId: string) {
+    if (!accessToken) return;
+    setMode('revoking'); setErr(null);
+    try {
+      await revokeOrgInvitation(accessToken, orgId, inviteId);
       await refresh();
     } catch (e) { setErr((e as Error).message); }
     finally { setMode('idle'); }
@@ -181,8 +222,11 @@ export default function AtlasTeamCard() {
           </div>
         </div>
 
-        {/* Manage existing teams (invite) */}
-        {teamOrgs.map((team) => (
+        {/* Manage existing teams (members + pending invites + invite) */}
+        {teamOrgs.map((team) => {
+          const detail = details[team.id];
+          const canManage = team.role === 'owner' || team.role === 'admin';
+          return (
           <div key={team.id} className="pt-2 border-t" style={{ borderColor: 'var(--color-border-subtle)' }}>
             <div className="flex items-baseline justify-between">
               <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{team.display_name}</div>
@@ -190,6 +234,69 @@ export default function AtlasTeamCard() {
                 {team.member_count} member{team.member_count === 1 ? '' : 's'} · role: {team.role}
               </div>
             </div>
+
+            {/* Members */}
+            {detail && detail.members.length > 0 && (
+              <div className="mt-2">
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                  Members
+                </div>
+                <div className="flex flex-col gap-1">
+                  {detail.members.map((m) => (
+                    <div key={m.user_id} className="flex items-center gap-2 px-2 py-1 rounded"
+                      style={{
+                        background: 'var(--color-background-subtle)',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.email ?? m.user_id.slice(0, 8)}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>{m.role}</span>
+                      {canManage && m.user_id !== user.id && (
+                        <Button size="sm" variant="outline" disabled={mode !== 'idle'}
+                          onClick={() => onRemove(team.id, m.user_id, m.email)}>
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending invitations */}
+            {detail && detail.pending_invitations.length > 0 && (
+              <div className="mt-2">
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                  Pending invitations
+                </div>
+                <div className="flex flex-col gap-1">
+                  {detail.pending_invitations.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2 px-2 py-1 rounded"
+                      style={{
+                        background: 'var(--color-background-subtle)',
+                        fontSize: '0.85rem',
+                        opacity: 0.85,
+                      }}
+                    >
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.email}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
+                        {p.role} · expires {new Date(p.expires_at).toLocaleDateString()}
+                      </span>
+                      {canManage && (
+                        <Button size="sm" variant="outline" disabled={mode !== 'idle'}
+                          onClick={() => onRevoke(team.id, p.id)}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {(team.role === 'owner' || team.role === 'admin') && (
               <div className="mt-2">
                 <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
@@ -239,7 +346,8 @@ export default function AtlasTeamCard() {
               </div>
             )}
           </div>
-        ))}
+        );
+        })}
 
         {/* Accept invite */}
         <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border-subtle)' }}>

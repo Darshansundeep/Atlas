@@ -12,6 +12,7 @@ import { openSharedSessionFromDeepLink, importNostrSessionFromDeepLink } from '.
 import { type SharedSessionDetails } from './sharedSessions';
 import { ErrorUI } from './components/ErrorBoundary';
 import { ExtensionInstallModal } from './components/ExtensionInstallModal';
+import OrgSwitcher from './components/atlas-brand/OrgSwitcher';
 import { toast, ToastContainer } from 'react-toastify';
 import AnnouncementModal from './components/AnnouncementModal';
 import TelemetryConsentPrompt from './components/TelemetryConsentPrompt';
@@ -654,6 +655,7 @@ export function AppInner() {
       <OnboardingTour />
       <div className="relative w-screen h-screen overflow-hidden bg-background-secondary flex flex-col">
         <div className="titlebar-drag-region" />
+        <OrgSwitcher />
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
           <Routes>
             <Route path="launcher" element={<LauncherView />} />

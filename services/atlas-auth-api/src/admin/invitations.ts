@@ -210,3 +210,97 @@ export async function userIsMemberWithRole(
   );
   return rows[0]?.role ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Member + invitation management (spec 050 v0.2 follow-ups, 2026-06-02)
+
+export interface RemoveMemberResult {
+  ok: boolean;
+  reason?: 'not_a_member' | 'last_owner' | 'cannot_remove_self_via_admin';
+}
+
+/**
+ * Remove a member from an org. Safety:
+ *  - Can't remove the last owner (org becomes unmanageable).
+ *  - The owner can remove themselves only if another owner exists.
+ *  - Personal orgs reject removal (you can't quit your own personal org).
+ */
+export async function removeMember(
+  pool: Pool,
+  orgId: string,
+  userId: string
+): Promise<RemoveMemberResult> {
+  const { rows: orgRows } = await pool.query<{ is_personal: boolean }>(
+    `SELECT is_personal FROM organizations WHERE id = $1 AND deleted_at IS NULL`,
+    [orgId]
+  );
+  if (!orgRows[0]) return { ok: false, reason: 'not_a_member' };
+  if (orgRows[0].is_personal) {
+    return { ok: false, reason: 'cannot_remove_self_via_admin' };
+  }
+
+  const { rows: memberRows } = await pool.query<{ role: OrgRole }>(
+    `SELECT role FROM organization_members
+      WHERE organization_id = $1 AND user_id = $2`,
+    [orgId, userId]
+  );
+  if (!memberRows[0]) return { ok: false, reason: 'not_a_member' };
+
+  if (memberRows[0].role === 'owner') {
+    const { rows: ownerCount } = await pool.query<{ n: string }>(
+      `SELECT COUNT(*)::text AS n FROM organization_members
+        WHERE organization_id = $1 AND role = 'owner'`,
+      [orgId]
+    );
+    if (Number(ownerCount[0]?.n ?? 1) <= 1) {
+      return { ok: false, reason: 'last_owner' };
+    }
+  }
+
+  await pool.query(
+    `DELETE FROM organization_members
+      WHERE organization_id = $1 AND user_id = $2`,
+    [orgId, userId]
+  );
+  return { ok: true };
+}
+
+export interface PendingInvitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: OrgRole;
+  invited_by_user_id: string;
+  expires_at: Date;
+  created_at: Date;
+}
+
+export async function listPendingInvitations(
+  pool: Pool,
+  orgId: string
+): Promise<PendingInvitation[]> {
+  const { rows } = await pool.query<PendingInvitation>(
+    `SELECT id, organization_id, email, role, invited_by_user_id,
+            expires_at, created_at
+       FROM organization_invitations
+      WHERE organization_id = $1
+        AND accepted_at IS NULL
+        AND expires_at > NOW()
+      ORDER BY created_at DESC`,
+    [orgId]
+  );
+  return rows;
+}
+
+export async function revokeInvitation(
+  pool: Pool,
+  invitationId: string,
+  orgId: string
+): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `DELETE FROM organization_invitations
+      WHERE id = $1 AND organization_id = $2 AND accepted_at IS NULL`,
+    [invitationId, orgId]
+  );
+  return (rowCount ?? 0) > 0;
+}

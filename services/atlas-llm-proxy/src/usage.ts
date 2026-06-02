@@ -45,23 +45,26 @@ export function computeCost(
 
 export interface RecordUsageInput {
   userId: string;
+  organizationId?: string | null;   // Spec 050 v0.1 — populated from JWT
   provider: string;
   model: string;
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
   requestId?: string | null;
-  status: 'ok' | 'quota_exceeded' | 'provider_error';
+  status: 'ok' | 'quota_exceeded' | 'provider_error' | 'org_budget_exceeded';
 }
 
 export async function recordUsage(pool: pg.Pool, ev: RecordUsageInput): Promise<void> {
   await pool.query(
     `INSERT INTO usage_events
-       (id, user_id, provider, model, input_tokens, output_tokens, cost_usd, request_id, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+       (id, user_id, organization_id, provider, model,
+        input_tokens, output_tokens, cost_usd, request_id, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [
       randomUUID(),
       ev.userId,
+      ev.organizationId ?? null,
       ev.provider.toLowerCase(),
       ev.model,
       ev.inputTokens,

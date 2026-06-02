@@ -62,3 +62,62 @@ export async function preflight(
   }
   return { ok: true, tier, remaining: cap - used };
 }
+
+// ---------------------------------------------------------------------------
+// Spec 050 v0.3 — org-level budget preflight.
+// Mirrors spec 040 v0.2's tool-side two-tier check: refuse on whichever
+// cap (user-tier OR org monthly budget) is hit first. NON-NEGOTIABLE
+// Principle V applies at BOTH grains.
+
+export interface OrgPreflightOk {
+  ok: true;
+  cap: number | null;   // null = unlimited (enterprise)
+  spent_mtd: number;
+}
+export interface OrgPreflightDenied {
+  ok: false;
+  reason: 'org_budget_exceeded';
+  cap: number;
+  spent_mtd: number;
+}
+export type OrgPreflightResult = OrgPreflightOk | OrgPreflightDenied;
+
+/**
+ * Returns ok=true when no cap is set (most orgs don't set one), or when
+ * MTD spend is below the cap. Returns denied otherwise.
+ *
+ * The cap lives at `organizations.monthly_budget_usd`. NULL means
+ * unlimited (Enterprise contracts).
+ */
+export async function orgPreflight(
+  pool: pg.Pool,
+  organizationId: string
+): Promise<OrgPreflightResult> {
+  const { rows } = await pool.query<{ cap: string | null; spent: string }>(
+    `SELECT o.monthly_budget_usd::text AS cap,
+            COALESCE(SUM(e.cost_usd) FILTER (
+              WHERE e.occurred_at >= date_trunc('month', NOW())
+                AND e.status = 'ok'
+            ), 0)::text AS spent
+       FROM organizations o
+       LEFT JOIN usage_events e ON e.organization_id = o.id
+      WHERE o.id = $1
+      GROUP BY o.monthly_budget_usd`,
+    [organizationId]
+  );
+  const r = rows[0];
+  if (!r) {
+    // org row missing — fail open at v0.3; spec 050 v0.1's backfill
+    // ensures every active user has one.
+    return { ok: true, cap: null, spent_mtd: 0 };
+  }
+  const spent = Number(r.spent ?? 0);
+  if (r.cap === null) {
+    return { ok: true, cap: null, spent_mtd: spent };
+  }
+  const cap = Number(r.cap);
+  if (cap > 0 && spent >= cap) {
+    return { ok: false, reason: 'org_budget_exceeded', cap, spent_mtd: spent };
+  }
+  return { ok: true, cap, spent_mtd: spent };
+}
