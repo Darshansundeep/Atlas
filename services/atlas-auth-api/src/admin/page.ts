@@ -329,6 +329,7 @@ export function adminHtml(): string {
       <button data-page="models">Models</button>
       <button data-page="skills">Skills</button>
       <button data-page="tools">Tools</button>
+      <button data-page="orgs">Orgs</button>
     </nav>
 
     <main>
@@ -630,6 +631,23 @@ export function adminHtml(): string {
             <span class="hint">enforced by the proxy BEFORE any upstream call</span>
           </div>
           <div id="tool-quotas-table"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-orgs">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Organizations</h2>
+            <span class="hint">spec 050 v0.1 — read-only. Personal orgs auto-created on sign-in.</span>
+          </div>
+          <div id="orgs-table"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2 id="org-detail-title">Drilldown</h2>
+            <span class="hint">click a row above</span>
+          </div>
+          <div id="org-detail-body" style="padding:1rem;color:var(--muted)">No org selected.</div>
         </div>
       </section>
     </main>
@@ -1164,9 +1182,55 @@ export function adminHtml(): string {
 
   document.getElementById('tool-form-cancel').addEventListener('click', resetToolForm);
 
+  async function loadOrganizations() {
+    const rows = await api('/admin/v1/organizations');
+    const host = document.getElementById('orgs-table');
+    if (!rows || rows.length === 0) {
+      host.innerHTML = '<div style="padding:1rem;color:var(--muted)">No organizations yet.</div>';
+      return;
+    }
+    const headers = ['Name', 'Plan', 'Type', 'Seats', 'Members', 'Sub status', 'Created'];
+    let html = '<table class="data"><thead><tr>' + headers.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>';
+    for (const r of rows) {
+      html += '<tr data-org-id="' + r.id + '" style="cursor:pointer">'
+        + '<td><strong>' + escape(r.display_name) + '</strong><br><span style="color:var(--muted);font-size:0.85em">' + escape(r.slug) + '</span></td>'
+        + '<td>' + escape(r.plan) + '</td>'
+        + '<td>' + (r.is_personal ? 'personal' : 'team') + '</td>'
+        + '<td>' + r.max_seats + '</td>'
+        + '<td>' + r.member_count + '</td>'
+        + '<td>' + escape(r.active_subscription_status ?? '—') + '</td>'
+        + '<td>' + new Date(r.created_at).toLocaleDateString() + '</td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    host.innerHTML = html;
+    host.querySelectorAll('tr[data-org-id]').forEach((tr) => {
+      tr.addEventListener('click', () => loadOrgDetail(tr.dataset.orgId));
+    });
+  }
+
+  async function loadOrgDetail(orgId) {
+    const detail = await api('/admin/v1/organizations/' + orgId);
+    document.getElementById('org-detail-title').textContent = detail.org.display_name + ' (' + detail.org.plan + ')';
+    const spend = detail.spend_mtd;
+    const memberRows = detail.members.map((m) =>
+      '<tr><td>' + escape(m.email ?? '?') + '</td><td>' + escape(m.role) + '</td><td>' + new Date(m.joined_at).toLocaleDateString() + '</td></tr>'
+    ).join('');
+    document.getElementById('org-detail-body').innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1rem">'
+      + '<div class="stat"><div class="num">' + spend.llm_tokens.toLocaleString() + '</div><div class="lbl">LLM tokens MTD</div></div>'
+      + '<div class="stat"><div class="num">$' + Number(spend.llm_usd).toFixed(4) + '</div><div class="lbl">LLM cost MTD</div></div>'
+      + '<div class="stat"><div class="num">' + (spend.tools_searches + spend.tools_scrapes) + '</div><div class="lbl">Tool calls MTD</div></div>'
+      + '<div class="stat"><div class="num">$' + Number(spend.tools_usd).toFixed(4) + '</div><div class="lbl">Tool cost MTD</div></div>'
+      + '</div>'
+      + '<table class="data"><thead><tr><th>Member</th><th>Role</th><th>Joined</th></tr></thead><tbody>'
+      + (memberRows || '<tr><td colspan="3" style="color:var(--muted)">No members.</td></tr>')
+      + '</tbody></table>';
+  }
+
   async function loadAll() {
     try {
-      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary(), loadToolProviders(), loadToolQuotas(), loadToolTemplates()]);
+      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary(), loadToolProviders(), loadToolQuotas(), loadToolTemplates(), loadOrganizations()]);
     } catch (e) {
       if (e.status === 401) {
         sessionStorage.removeItem('atlas_admin_token');

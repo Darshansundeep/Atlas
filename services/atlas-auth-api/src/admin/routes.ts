@@ -46,6 +46,12 @@ import {
   type ToolProviderType,
   type AuthScheme,
 } from './tool-providers.js';
+import {
+  getOrganization,
+  getOrgSpendMonthToDate,
+  listMembers,
+  listOrganizations,
+} from './organizations.js';
 import { emit as auditEmit } from '../audit.js';
 
 interface AdminEnv {
@@ -360,6 +366,20 @@ export function mountAdmin(app: any, env: AdminEnv): void {
     });
     if (!res.ok) return c.json({ error: res.error }, 400);
     return c.json({ ok: true });
+  });
+
+  // --- Spec 050 v0.1 — Organizations (read-only at v0.1) ---
+  admin.get('/v1/organizations', async (c) => c.json(await listOrganizations(pool)));
+
+  admin.get('/v1/organizations/:id', async (c) => {
+    const orgId = c.req.param('id');
+    const org = await getOrganization(pool, orgId);
+    if (!org) return c.json({ error: 'not_found' }, 404);
+    const [members, spend] = await Promise.all([
+      listMembers(pool, orgId),
+      getOrgSpendMonthToDate(pool, orgId),
+    ]);
+    return c.json({ org, members, spend_mtd: spend });
   });
 
   app.route('/admin', admin);

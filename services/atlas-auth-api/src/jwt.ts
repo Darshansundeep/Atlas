@@ -17,6 +17,10 @@ export interface AccessTokenClaims {
   email: string;
   sub_tier: 'free' | 'pro' | 'team' | 'enterprise';
   device_install_id: string;
+  // Spec 050 v0.1: active org context. Populated by the token issuer from
+  // the user's personal org (or a chosen team org). Consumers (LLM proxy,
+  // tool proxy) enforce quota at BOTH org AND user grain.
+  org?: { id: string; role: 'owner' | 'admin' | 'member' | 'viewer' };
   iat?: number;
   exp?: number;
   iss?: string;

@@ -245,3 +245,158 @@ CREATE TABLE IF NOT EXISTS model_catalogue (
   PRIMARY KEY (provider, model)
 );
 CREATE INDEX IF NOT EXISTS model_catalogue_provider_idx ON model_catalogue(provider);
+
+-- ============================================================================
+-- Spec 050 v0.1 — Teams & Organization Licensing
+-- An Organization is the billable entity. Every user belongs to at least one
+-- (their auto-created "personal" org). Every billable event row gets a
+-- denormalised organization_id so usage logs aggregate at user OR org grain.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS organizations (
+  id                 UUID PRIMARY KEY,
+  slug               TEXT UNIQUE NOT NULL,
+  display_name       TEXT NOT NULL,
+  plan               TEXT NOT NULL DEFAULT 'free',
+  owner_user_id      UUID NOT NULL REFERENCES users(id),
+  max_seats          INTEGER NOT NULL DEFAULT 1,
+  monthly_budget_usd NUMERIC(10,2),                  -- NULL = unlimited (enterprise)
+  monthly_tools_usd  NUMERIC(10,2),                  -- NULL = unlimited
+  is_personal        BOOLEAN NOT NULL DEFAULT FALSE, -- the auto-created org-of-one
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at         TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS organizations_owner_idx ON organizations(owner_user_id);
+CREATE INDEX IF NOT EXISTS organizations_plan_idx ON organizations(plan);
+
+CREATE TABLE IF NOT EXISTS organization_members (
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role            TEXT NOT NULL,  -- owner | admin | member | viewer
+  joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (organization_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS organization_members_user_idx ON organization_members(user_id);
+
+CREATE TABLE IF NOT EXISTS organization_invitations (
+  id                  UUID PRIMARY KEY,
+  organization_id     UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email               TEXT NOT NULL,
+  role                TEXT NOT NULL,
+  invited_by_user_id  UUID NOT NULL REFERENCES users(id),
+  token_hash          TEXT NOT NULL,                  -- bcrypt(token); one-shot use
+  expires_at          TIMESTAMPTZ NOT NULL,
+  accepted_at         TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS organization_invitations_org_idx
+  ON organization_invitations(organization_id) WHERE accepted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS organization_subscriptions (
+  organization_id        UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+  stripe_customer_id     TEXT,
+  stripe_subscription_id TEXT,
+  status                 TEXT NOT NULL DEFAULT 'active',  -- active|past_due|canceled|paused|trialing
+  current_period_end     TIMESTAMPTZ,
+  seat_count             INTEGER NOT NULL DEFAULT 1,
+  trial_ends_at          TIMESTAMPTZ,
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Org-level provider key overrides (extends spec 040). Reuses the same
+-- pgcrypto symmetric passphrase as tool_providers. Business+ tier feature.
+CREATE TABLE IF NOT EXISTS organization_tool_providers (
+  organization_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  provider_type        TEXT NOT NULL,
+  api_key_encrypted    BYTEA NOT NULL,
+  api_key_hint         TEXT NOT NULL,
+  enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (organization_id, provider_type)
+);
+
+-- Denormalised org column on every billable event table for fast pivots.
+-- Nullable for the brief window before backfill runs; populated by backfill
+-- below and by all NEW rows via app-layer write paths.
+
+ALTER TABLE usage_events        ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE tool_usage_events   ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE skill_usage_events  ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE skill_installations ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE audit_events        ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+
+CREATE INDEX IF NOT EXISTS usage_events_org_recent_idx
+  ON usage_events(organization_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS tool_usage_events_org_recent_idx
+  ON tool_usage_events(organization_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS skill_usage_events_org_recent_idx
+  ON skill_usage_events(organization_id, occurred_at DESC);
+
+-- ----------------------------------------------------------------------------
+-- Spec 050 v0.1 backfill — runs idempotently as part of schema migration.
+-- For every existing user without a personal org: create one, add owner
+-- membership, populate organization_id on historical event rows.
+-- ----------------------------------------------------------------------------
+
+-- 1. Create personal org for every user missing one
+INSERT INTO organizations (id, slug, display_name, plan, owner_user_id, max_seats, is_personal)
+SELECT
+  gen_random_uuid(),
+  'personal-' || LEFT(u.id::text, 8),
+  COALESCE(u.display_name, u.email, 'Personal'),
+  'free',
+  u.id,
+  1,
+  TRUE
+FROM users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM organizations o
+  WHERE o.owner_user_id = u.id AND o.is_personal = TRUE
+);
+
+-- 2. Owner membership for every personal org
+INSERT INTO organization_members (organization_id, user_id, role)
+SELECT o.id, o.owner_user_id, 'owner'
+FROM organizations o
+WHERE o.is_personal = TRUE
+ON CONFLICT (organization_id, user_id) DO NOTHING;
+
+-- 3. Backfill organization_id on historical events using each user's personal org
+UPDATE usage_events e
+SET organization_id = o.id
+FROM organizations o
+WHERE o.owner_user_id = e.user_id AND o.is_personal = TRUE
+  AND e.organization_id IS NULL;
+
+UPDATE tool_usage_events e
+SET organization_id = o.id
+FROM organizations o
+WHERE o.owner_user_id = e.user_id AND o.is_personal = TRUE
+  AND e.organization_id IS NULL;
+
+UPDATE skill_usage_events e
+SET organization_id = o.id
+FROM organizations o
+WHERE o.owner_user_id = e.user_id AND o.is_personal = TRUE
+  AND e.organization_id IS NULL;
+
+UPDATE skill_installations e
+SET organization_id = o.id
+FROM organizations o
+WHERE o.owner_user_id = e.user_id AND o.is_personal = TRUE
+  AND e.organization_id IS NULL;
+
+UPDATE audit_events e
+SET organization_id = o.id
+FROM organizations o
+WHERE o.owner_user_id = e.user_id AND o.is_personal = TRUE
+  AND e.organization_id IS NULL
+  AND e.user_id IS NOT NULL;
+
+-- 4. Default subscription row (free / active) for every org missing one
+INSERT INTO organization_subscriptions (organization_id, status, seat_count)
+SELECT o.id, 'active', o.max_seats
+FROM organizations o
+WHERE NOT EXISTS (
+  SELECT 1 FROM organization_subscriptions s WHERE s.organization_id = o.id
+);

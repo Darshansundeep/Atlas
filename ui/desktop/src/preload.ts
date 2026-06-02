@@ -389,6 +389,11 @@ const atlasAuthAPI = {
     ipcRenderer.invoke('atlas-auth-load-device-install-id') as Promise<string | null>,
   wipe: () => ipcRenderer.invoke('atlas-auth-wipe') as Promise<void>,
   getBackendUrl: () => ipcRenderer.invoke('atlas-auth-get-backend-url') as Promise<string>,
+  // Spec 040 v0.2 — push the current access token down to the main process
+  // so future goosed spawns inherit it (atlas-web-tools extension reads it
+  // from env). New chats started after sign-in will have web tools live.
+  setAccessToken: (token: string | null) =>
+    ipcRenderer.invoke('atlas-auth-set-access-token', token) as Promise<boolean>,
   pendingDeeplink: () =>
     ipcRenderer.invoke('atlas-auth-pending-deeplink') as Promise<{ code: string; state: string } | null>,
   onDeeplink: (cb: (payload: { code: string; state: string }) => void) => {

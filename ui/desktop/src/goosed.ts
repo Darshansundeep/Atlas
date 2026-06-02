@@ -151,6 +151,16 @@ export const buildGoosedEnv = (
     env[pathKey] = currentPath;
   }
 
+  // Spec 040 v0.2 — pass-through for atlas-web-tools platform extension.
+  // The extension's tool handlers read these to call back into the Atlas
+  // proxy with the user's Bearer token. Token rotates every 15 min; on
+  // 401, the extension surfaces an error and the desktop is expected to
+  // refresh (v0.2.1 will add live token push). Empty values are ignored.
+  const backend = process.env.ATLAS_AUTH_BACKEND_URL;
+  if (backend) env.ATLAS_AUTH_BACKEND_URL = backend;
+  const token = process.env.ATLAS_ACCESS_TOKEN;
+  if (token) env.ATLAS_ACCESS_TOKEN = token;
+
   return env;
 };
 

@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod apps;
+pub mod atlas_web;
 pub mod chatrecall;
 #[cfg(feature = "code-mode")]
 pub mod code_execution;
@@ -73,6 +74,26 @@ pub static PLATFORM_EXTENSIONS: Lazy<HashMap<&'static str, PlatformExtensionDef>
                 unprefixed_tools: false,
                 hidden: false,
                 client_factory: |ctx| Box::new(apps::AppsManagerClient::new(ctx).unwrap()),
+            },
+        );
+
+        // Spec 040 v0.2 — Atlas web tools. The agent gets web_search /
+        // web_scrape / read_url. Each tool POSTs to the Atlas backend,
+        // which enforces per-tier + per-org quota (Principle V) before
+        // touching upstream Brave / Tavily / Serper / Firecrawl. Disabled
+        // by default — desktop's sign-in flow enables it once the user has
+        // ATLAS_AUTH_BACKEND_URL + an access token in env.
+        map.insert(
+            atlas_web::EXTENSION_NAME,
+            PlatformExtensionDef {
+                name: atlas_web::EXTENSION_NAME,
+                display_name: "Atlas Web Tools",
+                description:
+                    "Search the web (Brave/Tavily/Serper) and scrape pages (Firecrawl). Routed via Atlas with per-tier + per-org quotas.",
+                default_enabled: true,
+                unprefixed_tools: false,
+                hidden: false,
+                client_factory: |ctx| Box::new(atlas_web::AtlasWebClient::new(ctx).unwrap()),
             },
         );
 

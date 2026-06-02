@@ -233,9 +233,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // escape hatch. The token is rotated/cleared by signing out so the
   // escape hatch tracks it. The token is short-lived (15-min TTL) and
   // never persisted to disk.
+  //
+  // Spec 040 v0.2 — also push to the Electron main process so new goosed
+  // spawns inherit it via ATLAS_ACCESS_TOKEN env (atlas-web-tools reads it).
   useEffect(() => {
     (window as { __atlasAccessToken?: string | null }).__atlasAccessToken =
       state.accessToken;
+    const w = window as unknown as {
+      atlasAuth?: { setAccessToken?: (t: string | null) => Promise<boolean> };
+    };
+    w.atlasAuth?.setAccessToken?.(state.accessToken ?? null).catch(() => {});
     return () => {
       (window as { __atlasAccessToken?: string | null }).__atlasAccessToken = null;
     };

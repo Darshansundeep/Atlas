@@ -2808,6 +2808,19 @@ async function appMain() {
     return authBackendUrl();
   });
 
+  // Spec 040 v0.2 — renderer pushes the current access token to the main
+  // process. New goosed spawns read process.env.ATLAS_ACCESS_TOKEN so the
+  // atlas-web-tools platform extension can call the proxy. Token rotates
+  // every 15 min; the renderer re-pushes on each refresh.
+  ipcMain.handle('atlas-auth-set-access-token', async (_e, token: string | null): Promise<boolean> => {
+    if (typeof token === 'string' && token.length > 0) {
+      process.env.ATLAS_ACCESS_TOKEN = token;
+    } else {
+      delete process.env.ATLAS_ACCESS_TOKEN;
+    }
+    return true;
+  });
+
   ipcMain.handle('atlas-auth-pending-deeplink', async (): Promise<{ code: string; state: string } | null> => {
     if (!pendingAuthDelivery) return null;
     const d = pendingAuthDelivery;

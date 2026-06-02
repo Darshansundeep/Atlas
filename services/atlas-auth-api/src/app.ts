@@ -27,6 +27,21 @@ import { emit as auditEmit } from './audit.js';
 import { stubAuthStartHtml } from './stub-page.js';
 import { mountAdmin } from './admin/routes.js';
 import { listSkills, recordInstall, recordUninstall, recordUsage } from './admin/queries.js';
+import { ensurePersonalOrg } from './admin/organizations.js';
+import {
+  decryptApiKey,
+  getToolProvider,
+  type ToolProviderType,
+} from './admin/tool-providers.js';
+import {
+  callCustomHttp,
+  scrapeFirecrawl,
+  searchBrave,
+  searchSerper,
+  searchTavily,
+  type AdapterResult,
+} from './tools/adapters.js';
+import { preflight, recordToolUsage } from './tools/preflight.js';
 import {
   entitlementsFor,
   getSubscription,
@@ -154,11 +169,17 @@ export function createApp(env: Env) {
         user_id: user.id, tier: 'free', monthly_token_quota: null,
         monthly_tokens_used: 0, renews_at: null, entitlements: [],
       };
+      const activeOrg = await ensurePersonalOrg(
+        pool,
+        user.id,
+        user.display_name ?? user.email
+      );
       const access = await signAccessToken(env.JWT_SIGNING_SECRET, {
         sub: user.id,
         email: user.email,
         sub_tier: sub.tier,
         device_install_id: deviceInstallId,
+        org: activeOrg,
       });
 
       await auditEmit(pool, {
@@ -210,11 +231,17 @@ export function createApp(env: Env) {
         user_id: user.id, tier: 'free' as const, monthly_token_quota: null,
         monthly_tokens_used: 0, renews_at: null, entitlements: [],
       };
+      const activeOrg = await ensurePersonalOrg(
+        pool,
+        user.id,
+        user.display_name ?? user.email
+      );
       const access = await signAccessToken(env.JWT_SIGNING_SECRET, {
         sub: user.id,
         email: user.email,
         sub_tier: sub.tier,
         device_install_id: row.device_install_id,
+        org: activeOrg,
       });
 
       await auditEmit(pool, {
@@ -363,6 +390,170 @@ export function createApp(env: Env) {
       body.context ?? null
     );
     return c.json({ ok: true });
+  });
+
+  // --- Spec 040 v0.2 — Web tools (Bearer + quota preflight + adapters) ---
+
+  async function callProviderAdapter(
+    providerName: string,
+    op: 'search' | 'scrape',
+    query: string,
+    count: number
+  ): Promise<{ adapter: AdapterResult; providerType: string }> {
+    const provider = await getToolProvider(pool, providerName);
+    if (!provider || !provider.enabled) {
+      throw Object.assign(new Error('provider_not_configured'), { httpStatus: 503 });
+    }
+    if (!env.TOOL_KEY_ENCRYPTION_PASSPHRASE) {
+      throw Object.assign(new Error('encryption_not_configured'), { httpStatus: 503 });
+    }
+    const apiKey = await decryptApiKey(
+      pool,
+      env.TOOL_KEY_ENCRYPTION_PASSPHRASE,
+      providerName
+    );
+    if (!apiKey) {
+      throw Object.assign(new Error('provider_key_missing'), { httpStatus: 503 });
+    }
+
+    const type = provider.provider_type as ToolProviderType;
+    let adapter: AdapterResult;
+    if (op === 'search') {
+      switch (type) {
+        case 'brave':  adapter = await searchBrave(apiKey, query, count); break;
+        case 'tavily': adapter = await searchTavily(apiKey, query, count); break;
+        case 'serper': adapter = await searchSerper(apiKey, query, count); break;
+        case 'custom_http':
+          adapter = await callCustomHttp({
+            apiKey, baseUrl: provider.base_url ?? '',
+            authScheme: provider.auth_scheme ?? 'bearer',
+            op: 'search', query, count,
+          });
+          break;
+        default:
+          throw Object.assign(new Error('provider_does_not_support_search'), { httpStatus: 400 });
+      }
+    } else {
+      switch (type) {
+        case 'firecrawl':
+          adapter = await scrapeFirecrawl(apiKey, query); break;
+        case 'custom_http':
+          adapter = await callCustomHttp({
+            apiKey, baseUrl: provider.base_url ?? '',
+            authScheme: provider.auth_scheme ?? 'bearer',
+            op: 'scrape', url: query,
+          });
+          break;
+        default:
+          throw Object.assign(new Error('provider_does_not_support_scrape'), { httpStatus: 400 });
+      }
+    }
+    return { adapter, providerType: type };
+  }
+
+  app.post('/v1/tools/web/search', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const body = (await c.req.json().catch(() => null)) as {
+      query?: string;
+      count?: number;
+      provider?: string;
+    } | null;
+    if (!body || typeof body.query !== 'string' || !body.query.trim()) {
+      return c.json({ error: 'invalid_request', detail: 'query required' }, 400);
+    }
+    const providerName = body.provider ?? 'brave';
+    const count = typeof body.count === 'number' ? body.count : 10;
+    const orgId = claims.org?.id ?? null;
+
+    // Preflight (Principle V — refuse BEFORE upstream)
+    const pf = await preflight(pool, {
+      userId: claims.sub,
+      organizationId: orgId,
+      tier: claims.sub_tier,
+      op: 'search',
+    });
+    if (!pf.ok) {
+      await recordToolUsage(pool, {
+        userId: claims.sub, organizationId: orgId,
+        toolName: 'web_search', provider: providerName,
+        inputSize: body.query.length, outputSize: 0,
+        costUsd: 0, status: 'quota_exceeded',
+        context: { reason: pf.reason, detail: pf.detail },
+      });
+      return c.json({ error: pf.reason, detail: pf.detail }, 402);
+    }
+
+    try {
+      const { adapter, providerType } = await callProviderAdapter(
+        providerName, 'search', body.query, count
+      );
+      await recordToolUsage(pool, {
+        userId: claims.sub, organizationId: orgId,
+        toolName: 'web_search', provider: providerType,
+        inputSize: adapter.input_size, outputSize: adapter.output_size,
+        costUsd: adapter.cost_usd, status: adapter.status,
+        context: { query: body.query, count,
+          ...(adapter.upstream_error ? { upstream_error: adapter.upstream_error } : {}) },
+      });
+      if (adapter.status !== 'ok') {
+        return c.json({ error: 'upstream_error', detail: adapter.upstream_error }, 502);
+      }
+      return c.json({ results: adapter.results, cost_usd: adapter.cost_usd });
+    } catch (e) {
+      const err = e as { message?: string; httpStatus?: number };
+      return c.json({ error: err.message ?? 'unknown' }, (err.httpStatus ?? 500) as 500);
+    }
+  });
+
+  app.post('/v1/tools/web/scrape', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const body = (await c.req.json().catch(() => null)) as {
+      url?: string;
+      provider?: string;
+    } | null;
+    if (!body || typeof body.url !== 'string' || !body.url.startsWith('http')) {
+      return c.json({ error: 'invalid_request', detail: 'http(s) url required' }, 400);
+    }
+    const providerName = body.provider ?? 'firecrawl';
+    const orgId = claims.org?.id ?? null;
+
+    const pf = await preflight(pool, {
+      userId: claims.sub,
+      organizationId: orgId,
+      tier: claims.sub_tier,
+      op: 'scrape',
+    });
+    if (!pf.ok) {
+      await recordToolUsage(pool, {
+        userId: claims.sub, organizationId: orgId,
+        toolName: 'web_scrape', provider: providerName,
+        inputSize: body.url.length, outputSize: 0,
+        costUsd: 0, status: 'quota_exceeded',
+        context: { reason: pf.reason, detail: pf.detail },
+      });
+      return c.json({ error: pf.reason, detail: pf.detail }, 402);
+    }
+
+    try {
+      const { adapter, providerType } = await callProviderAdapter(
+        providerName, 'scrape', body.url, 1
+      );
+      await recordToolUsage(pool, {
+        userId: claims.sub, organizationId: orgId,
+        toolName: 'web_scrape', provider: providerType,
+        inputSize: adapter.input_size, outputSize: adapter.output_size,
+        costUsd: adapter.cost_usd, status: adapter.status,
+        context: { url: body.url,
+          ...(adapter.upstream_error ? { upstream_error: adapter.upstream_error } : {}) },
+      });
+      if (adapter.status !== 'ok') {
+        return c.json({ error: 'upstream_error', detail: adapter.upstream_error }, 502);
+      }
+      return c.json({ result: adapter.results, cost_usd: adapter.cost_usd });
+    } catch (e) {
+      const err = e as { message?: string; httpStatus?: number };
+      return c.json({ error: err.message ?? 'unknown' }, (err.httpStatus ?? 500) as 500);
+    }
   });
 
   app.get('/v1/subscription', requireAccess, async (c) => {
