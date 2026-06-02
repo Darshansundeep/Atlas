@@ -328,6 +328,7 @@ export function adminHtml(): string {
       <button data-page="audit">Audit</button>
       <button data-page="models">Models</button>
       <button data-page="skills">Skills</button>
+      <button data-page="tools">Tools</button>
     </nav>
 
     <main>
@@ -533,6 +534,102 @@ export function adminHtml(): string {
             </div>
             <div id="skills-versions-body" style="overflow-y:auto; flex:1; padding:0;"></div>
           </div>
+        </div>
+      </section>
+
+      <!-- Spec 040 v0.1 — Tool providers + quotas -->
+      <section class="page" id="page-tools">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Tool providers</h2>
+            <span class="hint">web search, scraping. API keys encrypted at rest</span>
+          </div>
+          <div id="tool-providers-table"></div>
+        </div>
+
+        <div class="panel" style="margin-top: 18px;">
+          <div class="panel-header">
+            <h2 id="tool-form-title">Add or update a provider</h2>
+            <span class="hint" id="tool-form-hint">paste keys here — they're pgp_sym_encrypt'd before storage</span>
+          </div>
+          <form id="tool-form" style="padding: 0 16px 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <input type="hidden" name="original_name" id="tool-form-original-name" value="" />
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Quick start (fills the form with a template)
+              <select id="tool-template-picker" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;">
+                <option value="">— choose a template —</option>
+              </select>
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Name (slug)
+              <input name="name" required placeholder="my-brave" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Display name
+              <input name="display_name" required placeholder="Brave Search" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Provider type
+              <select name="provider_type" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;">
+                <option value="brave">Brave Search</option>
+                <option value="tavily">Tavily</option>
+                <option value="serper">Serper</option>
+                <option value="firecrawl">Firecrawl</option>
+                <option value="custom_http">Custom HTTP</option>
+              </select>
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Kind
+              <select name="kind" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;">
+                <option value="search">Search</option>
+                <option value="scrape">Scrape</option>
+                <option value="both">Both</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Base URL (only for custom_http; predefined types ignore this)
+              <input name="base_url" placeholder="https://api.example.com/search" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Auth scheme
+              <select name="auth_scheme" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;">
+                <option value="bearer">Authorization: Bearer &lt;key&gt;</option>
+                <option value="x-api-key">X-API-Key: &lt;key&gt;</option>
+                <option value="x-subscription-token">X-Subscription-Token: &lt;key&gt;</option>
+                <option value="query:key">?key=&lt;key&gt; in URL</option>
+                <option value="custom">Custom (config-driven)</option>
+              </select>
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              Rate limit (req/min)
+              <input name="rate_limit_rpm" type="number" min="0" placeholder="60" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-size:13px;margin-top:4px;" />
+            </label>
+            <label style="grid-column: 1 / -1; font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              API key <span id="tool-form-key-hint" class="hint" style="text-transform:none;font-weight:400;letter-spacing:0;"></span>
+              <input name="api_key" type="password" placeholder="paste secret key here" autocomplete="off" style="width:100%;padding:6px 8px;border:1px solid var(--hairline-2);border-radius:6px;font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px;" />
+            </label>
+            <label style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">
+              <input type="checkbox" name="enabled" style="margin-right:6px;vertical-align:middle;" /> Enabled
+            </label>
+            <div style="grid-column: 1 / -1; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button type="submit" style="background:linear-gradient(135deg,#0f1729,#1e2a55);color:#fafaf7;border:0;padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Save provider
+              </button>
+              <button type="button" id="tool-form-cancel" style="display:none;background:transparent;border:1px solid var(--hairline-2);color:var(--ink-soft);padding:8px 14px;border-radius:7px;font:inherit;font-weight:500;font-size:13px;cursor:pointer;">
+                Cancel
+              </button>
+              <span class="hint" id="tool-form-status" style="margin-left:6px;"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel" style="margin-top: 18px;">
+          <div class="panel-header">
+            <h2>Per-tier daily quotas</h2>
+            <span class="hint">enforced by the proxy BEFORE any upstream call</span>
+          </div>
+          <div id="tool-quotas-table"></div>
         </div>
       </section>
     </main>
@@ -909,9 +1006,167 @@ export function adminHtml(): string {
     }
   }
 
+  // ----- Spec 040 v0.1 — Tool providers + quotas ---------------------------
+  let TOOL_TEMPLATES = [];
+
+  async function loadToolTemplates() {
+    try {
+      TOOL_TEMPLATES = await api('/admin/v1/tool-providers/templates');
+      const sel = document.getElementById('tool-template-picker');
+      sel.innerHTML = '<option value="">— choose a template —</option>' +
+        TOOL_TEMPLATES.map((t, i) => '<option value="' + i + '">' + escape(t.display_name) + '</option>').join('');
+    } catch (e) {
+      console.warn('loadToolTemplates', e);
+    }
+  }
+
+  async function loadToolProviders() {
+    const rows = await api('/admin/v1/tool-providers');
+    if (rows.length === 0) {
+      document.getElementById('tool-providers-table').innerHTML = '<div class="empty">No providers configured. Add one below.</div>';
+      return;
+    }
+    const head = '<thead><tr>' +
+      '<th>Name</th><th>Display</th><th>Type</th><th>Kind</th>' +
+      '<th>Key</th><th>Rate</th><th>Status</th><th>Actions</th>' +
+      '</tr></thead>';
+    const tbody = rows.map(r =>
+      '<tr>' +
+        '<td class="mono">' + escape(r.name) + '</td>' +
+        '<td>' + escape(r.display_name) + '</td>' +
+        '<td><span class="pill">' + escape(r.provider_type) + '</span></td>' +
+        '<td><span class="pill">' + escape(r.kind) + '</span></td>' +
+        '<td class="mono">' + (r.has_api_key ? '••••' + escape(r.api_key_hint || '') : '<span class="hint">none</span>') + '</td>' +
+        '<td>' + (r.rate_limit_rpm ? r.rate_limit_rpm + '/min' : '<span class="hint">—</span>') + '</td>' +
+        '<td>' + (r.enabled ? '<span class="pill success">enabled</span>' : '<span class="pill">disabled</span>') + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="action" data-act="edit-tool" data-name="' + escape(r.name) + '">Edit</button> ' +
+          '<button class="action danger" data-act="del-tool" data-name="' + escape(r.name) + '">Delete</button>' +
+        '</td>' +
+      '</tr>'
+    ).join('');
+    document.getElementById('tool-providers-table').innerHTML = '<table>' + head + '<tbody>' + tbody + '</tbody></table>';
+  }
+
+  async function loadToolQuotas() {
+    const rows = await api('/admin/v1/tool-quotas');
+    const head = '<thead><tr>' +
+      '<th>Tier</th><th style="text-align:right">Searches/day</th>' +
+      '<th style="text-align:right">Scrapes/day</th>' +
+      '<th style="text-align:right">Budget USD/day</th><th>Actions</th>' +
+      '</tr></thead>';
+    const tbody = rows.map(r => {
+      const tier = r.tier;
+      return '<tr>' +
+        '<td>' + tierPill(tier) + '</td>' +
+        '<td style="text-align:right" class="mono">' +
+          '<input type="number" min="0" value="' + (r.searches_per_day ?? '') + '" placeholder="∞" data-quota="' + tier + '" data-field="searches_per_day" style="width:80px;padding:3px 6px;border:1px solid var(--hairline-2);border-radius:5px;font:inherit;font-size:12px;text-align:right;" />' +
+        '</td>' +
+        '<td style="text-align:right" class="mono">' +
+          '<input type="number" min="0" value="' + (r.scrapes_per_day ?? '') + '" placeholder="∞" data-quota="' + tier + '" data-field="scrapes_per_day" style="width:80px;padding:3px 6px;border:1px solid var(--hairline-2);border-radius:5px;font:inherit;font-size:12px;text-align:right;" />' +
+        '</td>' +
+        '<td style="text-align:right" class="mono">' +
+          '<input type="number" min="0" step="0.01" value="' + Number(r.budget_usd_per_day) + '" data-quota="' + tier + '" data-field="budget_usd_per_day" style="width:80px;padding:3px 6px;border:1px solid var(--hairline-2);border-radius:5px;font:inherit;font-size:12px;text-align:right;" />' +
+        '</td>' +
+        '<td><button class="action" data-act="save-quota" data-tier="' + tier + '">Save</button></td>' +
+      '</tr>';
+    }).join('');
+    document.getElementById('tool-quotas-table').innerHTML = '<table>' + head + '<tbody>' + tbody + '</tbody></table>';
+  }
+
+  function resetToolForm() {
+    const f = document.getElementById('tool-form');
+    f.reset();
+    document.getElementById('tool-form-original-name').value = '';
+    document.getElementById('tool-form-title').textContent = 'Add or update a provider';
+    document.getElementById('tool-form-hint').textContent = 'paste keys here — they\\'re pgp_sym_encrypt\\'d before storage';
+    document.getElementById('tool-form-key-hint').textContent = '';
+    document.getElementById('tool-form-cancel').style.display = 'none';
+    document.getElementById('tool-form-status').textContent = '';
+    f.querySelector('[name=name]').readOnly = false;
+  }
+
+  function fillToolFormFromRow(r) {
+    const f = document.getElementById('tool-form');
+    f.querySelector('[name=name]').value = r.name;
+    f.querySelector('[name=name]').readOnly = true;
+    f.querySelector('[name=display_name]').value = r.display_name;
+    f.querySelector('[name=provider_type]').value = r.provider_type;
+    f.querySelector('[name=kind]').value = r.kind;
+    f.querySelector('[name=base_url]').value = r.base_url || '';
+    f.querySelector('[name=auth_scheme]').value = r.auth_scheme || 'bearer';
+    f.querySelector('[name=rate_limit_rpm]').value = r.rate_limit_rpm || '';
+    f.querySelector('[name=api_key]').value = '';
+    f.querySelector('[name=enabled]').checked = !!r.enabled;
+    document.getElementById('tool-form-original-name').value = r.name;
+    document.getElementById('tool-form-title').textContent = 'Editing ' + r.name;
+    document.getElementById('tool-form-key-hint').textContent = r.has_api_key
+      ? '(stored: ••••' + (r.api_key_hint || '') + ' — leave blank to keep, type "" to clear)'
+      : '(no key stored yet)';
+    document.getElementById('tool-form-cancel').style.display = '';
+    document.getElementById('tool-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  document.getElementById('tool-template-picker').addEventListener('change', (e) => {
+    const idx = parseInt(e.target.value);
+    if (isNaN(idx)) return;
+    const t = TOOL_TEMPLATES[idx];
+    if (!t) return;
+    const f = document.getElementById('tool-form');
+    if (!f.querySelector('[name=name]').value) {
+      f.querySelector('[name=name]').value = t.provider_type;
+    }
+    f.querySelector('[name=display_name]').value = t.display_name;
+    f.querySelector('[name=provider_type]').value = t.provider_type;
+    f.querySelector('[name=kind]').value = t.kind;
+    f.querySelector('[name=base_url]').value = t.base_url;
+    f.querySelector('[name=auth_scheme]').value = t.auth_scheme;
+    document.getElementById('tool-form-status').textContent = t.notes + (t.signup_url ? ' · ' + t.signup_url : '');
+  });
+
+  document.getElementById('tool-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const apiKey = fd.get('api_key');
+    const payload = {
+      name: (fd.get('name') || '').trim(),
+      display_name: (fd.get('display_name') || '').trim(),
+      provider_type: fd.get('provider_type'),
+      kind: fd.get('kind'),
+      base_url: (fd.get('base_url') || '').trim() || null,
+      auth_scheme: fd.get('auth_scheme'),
+      rate_limit_rpm: fd.get('rate_limit_rpm') ? Number(fd.get('rate_limit_rpm')) : null,
+      enabled: fd.get('enabled') === 'on',
+    };
+    // Only include api_key when the user typed something. Empty string
+    // explicitly clears the stored key; null/undefined preserves it.
+    if (typeof apiKey === 'string' && apiKey.length > 0) {
+      payload.api_key = apiKey;
+    }
+    try {
+      await api('/admin/v1/tool-providers', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      toast('Saved ' + payload.name);
+      resetToolForm();
+      await loadToolProviders();
+    } catch (err) {
+      const detail = err.message || 'unknown';
+      if (detail.includes('encryption_not_configured')) {
+        toast('Server missing TOOL_KEY_ENCRYPTION_PASSPHRASE — set in .dev.vars', true);
+      } else {
+        toast('Save failed: ' + detail, true);
+      }
+    }
+  });
+
+  document.getElementById('tool-form-cancel').addEventListener('click', resetToolForm);
+
   async function loadAll() {
     try {
-      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary()]);
+      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary(), loadToolProviders(), loadToolQuotas(), loadToolTemplates()]);
     } catch (e) {
       if (e.status === 401) {
         sessionStorage.removeItem('atlas_admin_token');
@@ -956,6 +1211,49 @@ export function adminHtml(): string {
         await loadSkills();
       } catch (err) {
         toast('Rollback failed: ' + (err.message || 'unknown'), true);
+      }
+    }
+    if (btn && btn.dataset.act === 'edit-tool') {
+      try {
+        const r = await api('/admin/v1/tool-providers/' + encodeURIComponent(btn.dataset.name));
+        fillToolFormFromRow(r);
+      } catch (err) {
+        toast('Load failed: ' + (err.message || 'unknown'), true);
+      }
+    }
+    if (btn && btn.dataset.act === 'del-tool') {
+      const name = btn.dataset.name;
+      if (!confirm('Delete provider "' + name + '" and its encrypted API key?')) return;
+      try {
+        await api('/admin/v1/tool-providers/' + encodeURIComponent(name), { method: 'DELETE' });
+        toast('Deleted ' + name);
+        await loadToolProviders();
+      } catch (err) {
+        toast('Delete failed: ' + (err.message || 'unknown'), true);
+      }
+    }
+    if (btn && btn.dataset.act === 'save-quota') {
+      const tier = btn.dataset.tier;
+      const inputs = document.querySelectorAll('input[data-quota="' + tier + '"]');
+      const patch = {};
+      inputs.forEach(inp => {
+        const f = inp.dataset.field;
+        const v = inp.value.trim();
+        if (v === '') {
+          if (f === 'searches_per_day' || f === 'scrapes_per_day') patch[f] = null;
+        } else {
+          patch[f] = Number(v);
+        }
+      });
+      try {
+        await api('/admin/v1/tool-quotas/' + encodeURIComponent(tier), {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        toast('Quota saved for ' + tier);
+      } catch (err) {
+        toast('Quota save failed: ' + (err.message || 'unknown'), true);
       }
     }
     if (btn && btn.dataset.act === 'del-skill') {

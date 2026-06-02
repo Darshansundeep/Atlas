@@ -34,11 +34,24 @@ import {
   setUserTier,
   upsertCatalogue,
 } from './queries.js';
+import {
+  deleteToolProvider,
+  getToolProvider,
+  listToolProviders,
+  listToolQuotas,
+  PROVIDER_TEMPLATES,
+  updateToolQuota,
+  upsertToolProvider,
+  type ToolProviderKind,
+  type ToolProviderType,
+  type AuthScheme,
+} from './tool-providers.js';
 import { emit as auditEmit } from '../audit.js';
 
 interface AdminEnv {
   DATABASE_URL: string;
   ADMIN_TOKEN?: string;
+  TOOL_KEY_ENCRYPTION_PASSPHRASE?: string;
 }
 
 // `app` is the outer typed Hono (with Variables: Vars). We accept it as
@@ -266,6 +279,88 @@ export function mountAdmin(app: any, env: AdminEnv): void {
   admin.get('/v1/users/:id/skills', async (c) =>
     c.json(await listSkillsForUser(pool, c.req.param('id')))
   );
+
+  // ----- Spec 040 v0.1 — tool providers + quotas -------------------------
+
+  /** Return the templates the UI uses to pre-fill the "Add provider" form. */
+  admin.get('/v1/tool-providers/templates', (c) => c.json(PROVIDER_TEMPLATES));
+
+  admin.get('/v1/tool-providers', async (c) => c.json(await listToolProviders(pool)));
+
+  admin.get('/v1/tool-providers/:name', async (c) => {
+    const row = await getToolProvider(pool, c.req.param('name'));
+    if (!row) return c.json({ error: 'not_found' }, 404);
+    return c.json(row);
+  });
+
+  admin.post('/v1/tool-providers', async (c) => {
+    if (!env.TOOL_KEY_ENCRYPTION_PASSPHRASE) {
+      return c.json({ error: 'encryption_not_configured' }, 503);
+    }
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    if (
+      !body ||
+      typeof body.name !== 'string' ||
+      typeof body.display_name !== 'string' ||
+      typeof body.kind !== 'string' ||
+      typeof body.provider_type !== 'string'
+    ) {
+      return c.json(
+        { error: 'invalid_request', detail: 'name + display_name + kind + provider_type required' },
+        400
+      );
+    }
+    const kind = body.kind;
+    if (kind !== 'search' && kind !== 'scrape' && kind !== 'both' && kind !== 'custom') {
+      return c.json({ error: 'invalid_kind' }, 400);
+    }
+    const ptype = body.provider_type;
+    const validTypes = ['brave', 'tavily', 'firecrawl', 'serper', 'custom_http'];
+    if (!validTypes.includes(ptype)) {
+      return c.json({ error: 'invalid_provider_type', detail: `must be one of: ${validTypes.join(', ')}` }, 400);
+    }
+    await upsertToolProvider(pool, env.TOOL_KEY_ENCRYPTION_PASSPHRASE, {
+      name: body.name,
+      display_name: body.display_name,
+      kind: kind as ToolProviderKind,
+      provider_type: ptype as ToolProviderType,
+      base_url: typeof body.base_url === 'string' ? body.base_url : null,
+      api_key: typeof body.api_key === 'string' ? body.api_key : null,
+      auth_scheme:
+        typeof body.auth_scheme === 'string' ? (body.auth_scheme as AuthScheme) : null,
+      config:
+        body.config && typeof body.config === 'object' && !Array.isArray(body.config)
+          ? (body.config as Record<string, unknown>)
+          : {},
+      rate_limit_rpm:
+        typeof body.rate_limit_rpm === 'number' ? body.rate_limit_rpm : null,
+      enabled: typeof body.enabled === 'boolean' ? body.enabled : false,
+    });
+    return c.json({ ok: true });
+  });
+
+  admin.delete('/v1/tool-providers/:name', async (c) => {
+    await deleteToolProvider(pool, c.req.param('name'));
+    return c.json({ ok: true });
+  });
+
+  admin.get('/v1/tool-quotas', async (c) => c.json(await listToolQuotas(pool)));
+
+  admin.put('/v1/tool-quotas/:tier', async (c) => {
+    const tier = c.req.param('tier');
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body) return c.json({ error: 'invalid_request' }, 400);
+    const res = await updateToolQuota(pool, tier, {
+      searches_per_day:
+        typeof body.searches_per_day === 'number' ? body.searches_per_day : undefined,
+      scrapes_per_day:
+        typeof body.scrapes_per_day === 'number' ? body.scrapes_per_day : undefined,
+      budget_usd_per_day:
+        typeof body.budget_usd_per_day === 'number' ? body.budget_usd_per_day : undefined,
+    });
+    if (!res.ok) return c.json({ error: res.error }, 400);
+    return c.json({ ok: true });
+  });
 
   app.route('/admin', admin);
 }

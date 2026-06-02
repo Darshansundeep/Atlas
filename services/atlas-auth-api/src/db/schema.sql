@@ -166,6 +166,65 @@ CREATE INDEX IF NOT EXISTS skill_usage_events_skill_recent_idx
 CREATE INDEX IF NOT EXISTS skill_usage_events_user_recent_idx
   ON skill_usage_events(user_id, occurred_at DESC);
 
+-- Spec 040 v0.1 — Tool providers (web search, scraping, etc.).
+-- API keys are pgcrypto-encrypted at rest; the symmetric passphrase
+-- comes from TOOL_KEY_ENCRYPTION_PASSPHRASE (env). In responses we
+-- only ever return the LAST 4 chars of the key for verification.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS tool_providers (
+  name              TEXT PRIMARY KEY,        -- slug e.g. 'brave_search', 'my-custom'
+  display_name      TEXT NOT NULL,
+  kind              TEXT NOT NULL,           -- 'search' | 'scrape' | 'both' | 'custom'
+  provider_type     TEXT NOT NULL,           -- 'brave' | 'tavily' | 'firecrawl' | 'serper' | 'custom_http'
+  base_url          TEXT,                    -- only for custom_http
+  api_key_encrypted BYTEA,                   -- pgp_sym_encrypt(key, passphrase)
+  api_key_hint      TEXT,                    -- last 4 chars, plaintext, for UI confirmation
+  auth_scheme       TEXT,                    -- 'bearer' | 'x-api-key' | 'x-subscription-token' | 'query:key' | 'custom'
+  config            JSONB NOT NULL DEFAULT '{}',
+  rate_limit_rpm    INTEGER,
+  enabled           BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Per-tier daily quotas for tool usage. Enforced by the proxy layer
+-- BEFORE any upstream call (Constitution Principle V).
+CREATE TABLE IF NOT EXISTS tool_quotas (
+  tier                TEXT PRIMARY KEY,
+  searches_per_day    INTEGER,
+  scrapes_per_day     INTEGER,
+  budget_usd_per_day  NUMERIC(10, 4),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Audit + billing log for every forwarded tool call.
+CREATE TABLE IF NOT EXISTS tool_usage_events (
+  id               UUID PRIMARY KEY,
+  user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tool_name        TEXT NOT NULL,
+  provider         TEXT NOT NULL,
+  input_size       INTEGER,
+  output_size      INTEGER,
+  cost_usd         NUMERIC(10, 6) NOT NULL DEFAULT 0,
+  status           TEXT NOT NULL,
+  occurred_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  context          JSONB
+);
+CREATE INDEX IF NOT EXISTS tool_usage_events_user_recent_idx
+  ON tool_usage_events(user_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS tool_usage_events_provider_recent_idx
+  ON tool_usage_events(provider, occurred_at DESC);
+
+-- Seed default quotas. ON CONFLICT no-op so admin edits stick.
+INSERT INTO tool_quotas (tier, searches_per_day, scrapes_per_day, budget_usd_per_day)
+VALUES
+  ('free',          10,     5,    0.10),
+  ('pro',          500,   200,    5.00),
+  ('team',        2000,   800,   20.00),
+  ('enterprise',  NULL,  NULL, 1000.00)
+ON CONFLICT (tier) DO NOTHING;
+
 -- Spec 011 — Central model catalogue.
 -- Source-of-truth for (provider, model) pricing + capabilities. The
 -- desktop catalogue ships bundled for offline use; this table is the

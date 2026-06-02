@@ -41,6 +41,7 @@ interface Env {
   WORKOS_API_KEY?: string;
   CORS_ORIGINS?: string;
   ADMIN_TOKEN?: string;
+  TOOL_KEY_ENCRYPTION_PASSPHRASE?: string;
 }
 
 type Vars = {

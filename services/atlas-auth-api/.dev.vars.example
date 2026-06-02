@@ -30,3 +30,8 @@ CORS_ORIGINS=https://auth.atlas.netgroup.ai
 #   openssl rand -base64 24
 # Without ADMIN_TOKEN set, the admin JSON endpoints return 503 admin_disabled.
 ADMIN_TOKEN=
+
+# Spec 040 — symmetric passphrase for encrypting tool-provider API keys
+# at rest via pgcrypto. Generate with: openssl rand -base64 32
+# Rotating this requires re-saving every provider's API key.
+TOOL_KEY_ENCRYPTION_PASSPHRASE=dev-passphrase-rotate-in-prod-aaaaaaaaaaaa
