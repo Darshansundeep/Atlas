@@ -1,6 +1,6 @@
 # Atlas Roadmap — single-page status
 
-**Updated**: 2026-06-02 (end-of-day)
+**Updated**: 2026-06-02 (after shipping 040 v0.2 + Fix-1 + Fix-2 + 050 v0.1 + 050 v0.2 Path B)
 **Branch**: `001-rebrand-pass` (single working branch; all work lives here)
 **Repo**: https://github.com/Darshansundeep/Atlas
 **Constitution**: [.specify/memory/constitution.md](../.specify/memory/constitution.md)
@@ -12,63 +12,60 @@ points at a more detailed spec when it matters.
 
 ## Pick-up order for the next session
 
-Three pushes, in order. Each is ~1-2 hours; any one alone is a
-meaningful day's work.
+Big jump today: **Spec 040 v0.2 (web-tools runtime)**, **Spec 040
+Fix-1 + Fix-2 (session_id + admin Tool Usage view)**, and **Spec 050
+v0.1 + v0.2 Path B (org licensing + self-serve teams)** all shipped.
+Remaining pick-ups in order:
 
-### 1. Tools v0.2 — wire the web-search runtime — Spec 040
+### 1. Repackage the desktop + manual end-to-end
 
-**Status**: admin can configure providers (Brave / Tavily / Serper /
-Firecrawl / custom_http) with pgcrypto-encrypted keys and per-tier
-quotas. Agent can't call them yet.
+The Rust crate change (`atlas_web` platform extension) needs goosed
+rebuilt before the agent can actually call the tools. Once repackaged:
+sign in → create team → invite teammate → accept on second account →
+ask agent "search the web for X" → see row in admin Tool Usage with
+`session_id` populated.
 
-**Tomorrow's task**: ship `POST /v1/tools/web/search` +
-`/web/scrape` on atlas-auth-api with Bearer auth, per-tier quota
-preflight (Principle V), provider adapters, then a new
-`atlas-web-tools` MCP extension on the desktop registering
-`web_search` / `web_scrape` / `read_url`. Tasks listed in
-[`specs/040-tool-providers/spec.md`](040-tool-providers/spec.md)
-under v0.2.
+```
+cd ui/desktop && export PATH=/opt/homebrew/opt/node@22/bin:$PATH
+pnpm run package
+```
 
-Invocation policy (approved 2026-06-02): agent decides per-message
-based on tool availability + the "Web Research" skill's `when_to_use`
-guardrails — NOT auto-search-every-query.
+### 2. Skills v0.6 — goosed auto-records invocations
 
-### 2. Skills v0.6 — auto-record invocations
-
-**Status**: install / uninstall / used endpoints work and the desktop
-records on user action. Goosed itself doesn't know when a skill's
-prompt/tools are actually used during a session.
-
-**Tomorrow's task**: in goosed, when an installed skill's extension
-runs a tool, POST `/v1/skills/:id/used` so the admin's Skills Usage
-analytics reflect real engagement, not just manual signals.
+In goosed, when an installed skill's extension runs a tool, POST
+`/v1/skills/:id/used` so the admin's Skills Usage analytics reflect
+real engagement, not just manual signals.
 
 ### 3. Skills v0.7 — bridge to Goose's built-in `~/.agents/skills/`
 
-**Status**: v0.4 invented a custom `extend_system_prompt` path; Goose
-has a native Skills platform extension that auto-loads SKILL.md from
-`~/.agents/skills/`. Duplication. Memory note:
+v0.4 invented a custom `extend_system_prompt` path; Goose has a native
+Skills platform extension that auto-loads SKILL.md from
+`~/.agents/skills/`. Memory note:
 [`project_atlas_skills_v07`](../../../.claude/.../project_atlas_skills_v07.md).
 
-**Tomorrow's task**: on install, also write
-`~/.agents/skills/<skill_id>/SKILL.md` (+ supporting_files) and delete
-the parallel `/agent/extend_system_prompt` injection. Validate the
-agent still picks up the SKILL.md prose. Darshan wants to field-test
-current v0.4/v0.5 before this refactor.
+On install, also write `~/.agents/skills/<skill_id>/SKILL.md` (+
+supporting_files) and delete the parallel `/agent/extend_system_prompt`
+injection. Darshan wants to field-test current v0.4/v0.5 first.
 
-### 4. Close spec 001 leftovers — keychain + sessions migration
+### 4. Spec 050 v0.3 — org-level budget on LLM proxy
 
-**Status**: rebrand ~90% done after recent fixes (Apps default-off,
-Downloads as default working dir, sign-in auto-close, chat layout cap).
-Two known artifacts remain:
-- macOS still prompts for the legacy `"goose"` keychain entries on first
-  launch. Atlas namespace `ai.netgroup.atlas` is in place for new
-  credentials but old reads aren't migrated.
-- Sessions on disk still live at `~/.local/share/goose/sessions/`.
+Tools side already does two-tier preflight (user + org). LLM proxy
+(spec 003) still only checks per-user. Mirror the pattern: read
+`organizations.monthly_budget_usd`, sum org-wide MTD spend, refuse on
+whichever cap is hit first.
 
-**Task**: migrate both. Details in
+### 5. Spec 050 v0.4 — Stripe webhook + subscription state
+
+`organization_subscriptions` table exists with `stripe_customer_id` +
+`stripe_subscription_id` columns but nothing populates them. Add the
+webhook handler + plan-change → seat_count update.
+
+### 6. Close spec 001 leftovers — keychain + sessions migration
+
+Rebrand ~90% done. macOS keychain still prompts for legacy `"goose"`
+entries; sessions still at `~/.local/share/goose/sessions/`. Details in
 [`specs/001-rebrand-pass/tasks.md`](001-rebrand-pass/tasks.md) tasks
-T015 (binary), T018-T019 (Rust paths), T021-T023 (assets/splash).
+T015, T018-T019, T021-T023.
 
 ---
 
@@ -91,7 +88,8 @@ Postgres + the two Hono services.
 | **022 skill platform** | v0.1 catalogue + admin CRUD + desktop browse. v0.2 versioning + rollback. **v0.3 SKILL.md content model** (when_to_use/instructions_md/examples_md/supporting_files prose + admin three-textarea editor + 6 seeded skills with full agentskills.io-style prose). **v0.4 runtime hookup** (custom `POST /agent/extend_system_prompt` per installed skill on session start + resume). **v0.5 install/usage telemetry** (skill_installations + skill_usage_events + admin Skills Usage summary / per-skill installations / per-skill usage / per-user lists). |
 | **023 UI refresh** | Atlas Premium design system: cobalt + amber palette, Inter typography, gradient hero on welcome/sign-in, premium cards everywhere, sidebar wordmark + active-rail, message-bubble redesign. **+ 2026-06-02 fixes**: 820 px max-width chat column (no more right-edge drift on wide screens), file-path chip uses `color: inherit` so it reads inside dark user bubbles, sign-in dialog auto-closes after successful paste-code auth. |
 | **026 upstream-sync** | `scripts/upstream-sync.sh` triage tool + spec. |
-| **040 tool providers (v0.1)** | Tools admin tab: provider templates (Brave / Tavily / Serper / Firecrawl / custom_http), pgcrypto-encrypted API keys at rest, masked read (last-4 hint), per-tier quota matrix (free/pro/team/enterprise — searches/scrapes/USD per day). Encryption fails-closed when passphrase env missing. Runtime adapters + MCP extension pending (v0.2). |
+| **040 tool providers** | **v0.1 + v0.2 + Fix-1 + Fix-2 shipped 2026-06-02.** Provider templates + pgcrypto-encrypted keys + per-tier quotas (v0.1). `POST /v1/tools/web/search` + `/scrape` Bearer endpoints, 5 provider adapters (brave/tavily/serper/firecrawl/custom_http), two-tier quota preflight (user + org), built-in `atlas_web` platform extension exposing `web_search`/`web_scrape`/`read_url` to the agent, desktop env passthrough for `ATLAS_AUTH_BACKEND_URL` + `ATLAS_ACCESS_TOKEN` (v0.2). `tool_usage_events.session_id` capture (Fix-1). Admin Tool Usage panel with filter row + daily aggregate + recent events + top sessions + click-to-drill (Fix-2). |
+| **050 teams licensing** | **v0.1 + v0.2 Path B shipped 2026-06-02.** Organizations table + members + invitations + subscriptions; backfill personal org per existing user; `org` claim in JWT (v0.1). Self-serve teams via desktop Settings → App → Atlas Team card: create-org, paste-share invite codes (`atlas-invite-XXXX-XXXX-XXXX`, 14-day expiry, SHA-256 hash at rest), accept-invite, multi-org switcher with `/v1/auth/switch-org` token re-sign (v0.2 Path B). Smoke verified end-to-end: darshan → create team → invite → alice accepts → switch active org. |
 
 ### Recent polish (2026-06-02)
 
@@ -134,9 +132,13 @@ Code-only, no external blockers — I can do these.
 | **022 v0.8** | ed25519 manifest signing + verification chain |
 | **022 v0.9** | Per-org allow/deny lists (waits on 021 orgs) |
 | **023 v2** | Settings tab chrome (still has some upstream patterns); deeper sidebar density work |
-| **040 v0.2** | Web-tools runtime: `/v1/tools/web/search` + `/web/scrape` Bearer endpoints, per-tier quota preflight, provider adapters, atlas-web-tools MCP extension, Web Research skill manifest update. **Recommended pickup #1.** |
 | **040 v0.3** | Per-user BYOK override on web tools (Pro+ users plug their own provider key, bypass Atlas quota) |
 | **040 v0.4** | Tier-aware provider primary/fallback selection |
+| **050 v0.3** | Org-level budget preflight on LLM proxy (tools side already done in 040 v0.2) |
+| **050 v0.4** | Stripe webhook → `organization_subscriptions` mirror + seat enforcement |
+| **050 v0.5** | Org admin console (org-scoped UI, distinct from Atlas operator admin) |
+| **050 v0.6** | Per-org provider keys UX (schema `organization_tool_providers` already in place) |
+| **050 v0.9** | Title-bar org switcher chrome (polish on top of Settings switcher) |
 
 ### C. Specced, no code
 

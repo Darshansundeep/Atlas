@@ -1,8 +1,9 @@
 # Feature Specification: Teams & Organization Licensing
 
 **Feature Branch**: `050-teams-licensing`
-**Status**: SPEC ONLY — no implementation. Captures gap surfaced 2026-06-02.
+**Status**: v0.1 + v0.2 Path B SHIPPED 2026-06-02. v0.3 (org-level budget preflight) + v0.4 (Stripe) queued.
 **Created**: 2026-06-02
+**Last updated**: 2026-06-02
 **Depends on**: 002 (auth) shipped; 003 (LLM proxy) shipped; 022 (skills) shipped; 040 (tools) v0.1 shipped
 **Blocks**: 024 (skill pricing), 025 (skill marketplace), proper field rollout of 003/022/040
 
@@ -266,18 +267,42 @@ Refresh-token rotation re-issues with the org context preserved. A
 
 ## Versioned rollout
 
-| Version | What |
-|---|---|
-| **v0.1** | DB tables + backfill personal-org for every existing user + `org` JWT claim + admin can list orgs |
-| **v0.2** | Invitation flow (email + token) + Members tab in admin |
-| **v0.3** | Org-level budget preflight on spec 003 + spec 040 |
-| **v0.4** | Stripe webhook + subscription state + seat enforcement |
-| **v0.5** | Org admin console (org-scoped, not Atlas-operator-scoped) |
-| **v0.6** | Per-org provider keys (extends 040) |
-| **v0.7** | Org-level skill allow/deny (extends 022) |
-| **v0.8** | SSO / SAML / SCIM (Business+) |
+| Version | What | State |
+|---|---|---|
+| **v0.1** | DB tables + backfill personal-org for every existing user + `org` JWT claim + admin can list orgs + drilldown with MTD spend | ✅ shipped 2026-06-02 |
+| **v0.2 Path B** | Self-serve teams: create-org + invitation codes (paste-share) + accept-invite + multi-org switcher + listMyOrganizations + `/v1/auth/switch-org` re-signs JWT with new org claim. Desktop AtlasTeamCard surfaces all of it. | ✅ shipped 2026-06-02 |
+| **v0.2 Path A** | Admin-side: operator creates team org + adds members via `/admin/v1/organizations` endpoints | ⏳ deferred (Path B covers the use case for now) |
+| v0.3 | Org-level budget preflight on spec 003 + spec 040 (already wired in 040's preflight.ts via `organization_tool_providers`/`monthly_tools_usd`; needs same in LLM proxy) | 🟡 partial — tool side done, LLM side pending |
+| v0.4 | Stripe webhook + subscription state + seat enforcement | ⏳ |
+| v0.5 | Org admin console (org-scoped, not Atlas-operator-scoped) | ⏳ |
+| v0.6 | Per-org provider keys (extends 040 — table `organization_tool_providers` already exists) | 🟡 schema in place, no UX |
+| v0.7 | Org-level skill allow/deny (extends 022) | ⏳ |
+| v0.8 | SSO / SAML / SCIM (Business+) | ⏳ |
+| v0.9 | Title-bar org switcher chrome (small polish on top of v0.2 Settings switcher) | ⏳ |
 
-v0.1 + v0.2 + v0.3 are the MVP for "Atlas Teams" launch.
+v0.1 + v0.2 are the MVP for "Atlas Teams" launch — both shipped today.
+
+### v0.2 Path B — files shipped
+
+| Item | Where |
+|---|---|
+| Invite-code generator + SHA-256 hash at rest | `services/atlas-auth-api/src/admin/invitations.ts` |
+| `createTeamOrganization` / `createInvitation` / `acceptInvitation` / `listMyOrganizations` / `userIsMemberWithRole` | same |
+| Public Bearer-authed endpoints: `/v1/organizations/me`, `POST /v1/organizations`, `POST /v1/organizations/:id/invitations`, `POST /v1/invitations/accept`, `POST /v1/auth/switch-org` | `services/atlas-auth-api/src/app.ts` |
+| Desktop Settings → App → Atlas Team card: active-org switcher + create-team + invite + accept | `ui/desktop/src/components/settings/app/AtlasTeamCard.tsx` |
+| `AuthContext.applyAccessToken(token)` for in-place org switch | `ui/desktop/src/auth/AuthContext.tsx` |
+| Client API helpers | `ui/desktop/src/auth/api.ts` |
+
+### Smoke verified
+
+```
+1. darshan creates "NET Group Engineering" → owner of new team org
+2. /v1/organizations/me lists 2 orgs (personal + team), role=owner each
+3. invitation generates code `atlas-invite-EFAH-DB5V-83PT`, 14-day expiry
+4. alice signs in → ensurePersonalOrg auto-creates her personal org
+5. alice accepts code → joins team as member; team now has 2 members
+6. alice /v1/auth/switch-org → fresh JWT with org claim = team, role=member
+```
 
 ## Constitution touchpoints
 

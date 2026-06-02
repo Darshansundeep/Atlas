@@ -1,8 +1,9 @@
 # Feature Specification: Tool Providers (Web Search, Scraping, Custom HTTP)
 
 **Feature Branch**: `040-tool-providers`
-**Status**: v0.1 shipped (admin config + encrypted key storage + per-tier quotas). v0.2 (runtime + MCP extension) pending.
+**Status**: v0.1 + v0.2 + Fix-1 + Fix-2 SHIPPED 2026-06-02. v0.3 (per-user BYOK override) + v0.4 (provider failover) queued.
 **Created**: 2026-06-02
+**Last updated**: 2026-06-02
 
 ## Problem
 
@@ -96,26 +97,47 @@ as brave, Tavily, firecrawl, my own setup, serper etc"* (2026-06-02).
 | `TOOL_KEY_ENCRYPTION_PASSPHRASE` env var | `.dev.vars.example` + `server-node.ts` + `app.ts` |
 | 11/11 integration checks: encryption, masked read, preserve-on-no-key, custom_http, quota seed + patch, delete, invalid type rejection | smoke test |
 
-### v0.2 — NOT YET SHIPPED (runtime + MCP)
+### v0.2 — SHIPPED (runtime + MCP)
 
-The admin can configure providers, but the agent can't call them yet.
-Next session:
+| Item | Where |
+|---|---|
+| `POST /v1/tools/web/search` Bearer-authed + quota preflight | `src/app.ts` |
+| `POST /v1/tools/web/scrape` Bearer-authed + quota preflight | same |
+| Two-tier quota preflight (user tier AND org monthly_tools_usd) | `src/tools/preflight.ts` |
+| Provider adapters: brave / tavily / serper / firecrawl / custom_http | `src/tools/adapters.ts` |
+| PRICING map: brave $0.003, tavily $0.008, serper $0.001, firecrawl $0.001 per call | same |
+| Built-in `atlas_web` platform extension registering `web_search` / `web_scrape` / `read_url` | `crates/goose/src/agents/platform_extensions/atlas_web.rs` |
+| Wired into PLATFORM_EXTENSIONS map (`default_enabled: true`) | `crates/goose/src/agents/platform_extensions/mod.rs` |
+| Desktop passes `ATLAS_AUTH_BACKEND_URL` + `ATLAS_ACCESS_TOKEN` env to goosed | `ui/desktop/src/goosed.ts::buildGoosedEnv` |
+| IPC channel `atlas-auth-set-access-token` so renderer mirrors token to main | `ui/desktop/src/main.ts` + `preload.ts` + `AuthContext.tsx` |
+| Records `tool_usage_events` with `cost_usd`, `organization_id` from JWT `org` claim | `src/tools/preflight.ts::recordToolUsage` |
+| Quota refusals also recorded as `status='quota_exceeded'` events | same |
+| Invocation policy (Tier 1+2+3) embedded in tool descriptions + extension instructions | `atlas_web.rs` |
 
-- [ ] T201 Public Bearer-authed endpoint `POST /v1/tools/web/search`
-- [ ] T202 Public Bearer-authed endpoint `POST /v1/tools/web/scrape`
-- [ ] T203 Per-tier quota preflight (mirror of spec 003 `preflight()`)
-- [ ] T204 Provider adapters: brave / tavily / serper / firecrawl
-- [ ] T205 Generic `custom_http` adapter using `base_url` + `auth_scheme`
-- [ ] T206 New MCP extension `atlas-web-tools` shipped with the desktop;
-       registers `web_search`, `web_scrape`, `read_url` tools
-- [ ] T207 Wire `atlas-web-tools` into goosed's extension manager so
-       the agent sees the tools
-- [ ] T208 Update spec 022's seeded "Web Research" skill's
-       `manifest.extensions` to reference `@atlas/web-tools` so the
-       SKILL.md procedural knowledge actually has the tool to call
-- [ ] T209 Record `tool_usage_events` with `cost_usd` per call
-- [ ] T210 Admin views: per-provider invocations, per-user usage,
-       cost-by-day (mirrors spec 022 v0.5 skills views)
+End-to-end smoke verified: stub-IdP sign-in → JWT carries `org` claim →
+search with free-tier cap=0 → 402 `tier_quota_exceeded` → row in
+`tool_usage_events` carries `user_id` + `organization_id` →
+`/admin/v1/organizations/:id` rollup shows `tools_searches: 1`.
+
+### Fix-1 — session_id captured (2026-06-02)
+
+| Item | Where |
+|---|---|
+| `tool_usage_events.session_id TEXT` (nullable) + partial index | `src/db/schema.sql` |
+| `recordToolUsage` takes `sessionId` parameter | `src/tools/preflight.ts` |
+| `/v1/tools/web/search` + `/scrape` accept `body.session_id` | `src/app.ts` |
+| `atlas_web.rs` passes `ctx.session_id` in JSON body | `crates/goose/src/agents/platform_extensions/atlas_web.rs` |
+
+### Fix-2 — Admin Tool Usage panel (2026-06-02)
+
+| Item | Where |
+|---|---|
+| `listToolUsage` with 9 filters (user/org/provider/tool/status/session/since/until/limit) | `src/admin/tool-usage.ts` |
+| `getToolUsageDaily` — 30-day buckets (searches, scrapes, ok, refused, cost) | same |
+| `getToolUsageBySession` — top-N sessions by call count | same |
+| Admin endpoints: GET `/admin/v1/tool-usage`, `/tool-usage/daily`, `/tool-usage/by-session` | `src/admin/routes.ts` |
+| Admin UI panel under Tools tab: filter row + daily aggregate + recent events table + top-sessions table + click-to-drill | `src/admin/page.ts` |
+| Status pills (`ok` green, `quota_exceeded`/`upstream_error` red) | same |
 
 ### v0.3 — Per-user BYOK override (deferred)
 
