@@ -13,6 +13,7 @@ import {
 } from '../../hooks/useNavigationItems';
 import { AppEvents } from '../../constants/events';
 import { AtlasMark } from '../atlas-brand/AtlasMark';
+import OrgSwitcher from '../atlas-brand/OrgSwitcher';
 import { InlineEditText } from '../common/InlineEditText';
 import { SessionIndicators } from '../SessionIndicators';
 import { updateSessionName, type Session } from '../../api';
@@ -234,6 +235,11 @@ export const Navigation: React.FC<{ className?: string }> = ({ className }) => {
           <PanelLeft className="w-4 h-4 text-text-secondary" />
         </button>
       </div>
+
+      {/* Spec 050 v0.2 — workspace switcher. Only renders if user is in
+          more than one org (i.e. at least one team org beyond their
+          personal one). Slack/Linear/Notion-style placement. */}
+      <OrgSwitcher />
 
       {/* Nav items */}
       <div className="px-2 pt-2 flex flex-col gap-0.5">

@@ -1,19 +1,22 @@
 /**
- * Title-bar org switcher. Spec 050 v0.2 polish.
+ * Org switcher (spec 050 v0.2 polish, refactored 2026-06-03).
  *
- * Compact dropdown that shows the user's active organization and lets
- * them switch between memberships in one click. Only renders when:
+ * Renders in the sidebar header below the Atlas wordmark, NOT in the
+ * title bar — title-bar position collided with the top-right toast
+ * container. Sidebar placement matches the workspace-switcher pattern
+ * users expect from Slack / Linear / Notion.
+ *
+ * Only renders when:
  *   - The user is signed in
- *   - They belong to more than one org (i.e. at least one team org;
- *     personal-only users see nothing)
+ *   - They belong to more than one org (personal-only users see nothing)
  *
- * Clicking "Use" on a non-active org POSTs /v1/auth/switch-org and the
- * AuthContext's accessToken is swapped in place. The desktop's next
- * goosed spawn picks up the new org via the env-pass-through.
+ * Clicking a non-active row POSTs /v1/auth/switch-org. The AuthContext's
+ * accessToken is swapped in place; the next goosed spawn inherits the
+ * new org via env passthrough.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Building2 } from 'lucide-react';
 import {
   listMyOrgs,
   switchActiveOrg,
@@ -46,7 +49,7 @@ export default function OrgSwitcher() {
   }, [open]);
 
   if (!user || !accessToken || !data) return null;
-  // Don't clutter the chrome for users who only have a personal org.
+  // Don't clutter the sidebar for users who only have a personal org.
   if (data.organizations.length < 2) return null;
 
   const active = data.organizations.find((o) => o.id === data.active_org_id)
@@ -65,57 +68,51 @@ export default function OrgSwitcher() {
   }
 
   return (
-    <div
-      ref={ref}
-      className="no-drag"
-      style={{
-        position: 'fixed',
-        top: 4,
-        right: 12,
-        zIndex: 60,
-        fontSize: '0.78rem',
-      }}
-    >
+    <div ref={ref} style={{ position: 'relative', padding: '0 16px 8px' }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={busy}
         style={{
-          display: 'inline-flex',
+          display: 'flex',
           alignItems: 'center',
-          gap: 4,
-          padding: '3px 8px',
+          gap: 6,
+          width: '100%',
+          padding: '6px 8px',
           borderRadius: 6,
-          border: '1px solid color-mix(in srgb, currentColor 22%, transparent)',
-          background: 'color-mix(in srgb, currentColor 6%, transparent)',
+          border: '1px solid var(--color-border-subtle, rgba(0,0,0,0.08))',
+          background: 'var(--color-background-subtle, transparent)',
           color: 'inherit',
           cursor: 'pointer',
-          maxWidth: 240,
+          fontSize: '0.78rem',
+          textAlign: 'left',
         }}
-        title={`Active organization: ${active.display_name} (${active.role})`}
+        title={`Active workspace: ${active.display_name} (${active.role})`}
       >
+        <Building2 size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
         <span style={{
+          flex: 1,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          maxWidth: 180,
+          minWidth: 0,
         }}>
           {active.display_name}
         </span>
-        <ChevronDown size={12} />
+        <ChevronDown size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
       </button>
       {open && (
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
-            right: 0,
-            minWidth: 260,
-            maxWidth: 320,
+            top: 'calc(100% + 2px)',
+            left: 16,
+            right: 16,
+            zIndex: 50,
             borderRadius: 8,
-            border: '1px solid var(--color-border-subtle)',
+            border: '1px solid var(--color-border-subtle, rgba(0,0,0,0.1))',
             background: 'var(--color-background-primary)',
-            boxShadow: 'var(--shadow-md)',
+            boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.12))',
             padding: 4,
           }}
         >
@@ -155,6 +152,7 @@ export default function OrgSwitcher() {
               <span style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontWeight: 500,
+                  fontSize: '0.82rem',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
