@@ -1,21 +1,26 @@
 # Feature Specification: Skill Platform — Governance + Per-Org Enablement
 
 **Feature Branch**: `022-skill-platform`
-**Status**: v0.1 + v0.2 shipped. v0.3 (runtime hookup) is the next pickup.
+**Status**: v0.1–v0.5 shipped. v0.6 (goosed-side invocation telemetry) and v0.7 (bridge to Goose's built-in `~/.agents/skills/` mechanism) queued.
 **Created**: 2026-05-31
+**Last updated**: 2026-06-02
 
-## Implementation status — 2026-05-31
+## Implementation status — 2026-06-02
 
 | Version | What | Shipped? |
 |---|---|---|
 | **v0.1** | skills_catalogue table + 6 seeds + admin CRUD + desktop browse + install/uninstall toggle | ✅ |
 | **v0.2** | skill_versions table + Edit / Save-in-place / Publish-new-version / version history modal / rollback | ✅ |
-| **v0.3** | **Runtime hookup** — install actually adds the MCP extension to goosed and surfaces tools in the next chat | 🟡 next pickup, see [`tasks.md`](tasks.md) Phase 3 |
-| v0.4 | ed25519 manifest signing + verification chain | ⏳ |
-| v0.5 | Per-org allow/deny lists (waits on 021 orgs) | ⏳ |
+| **v0.3** | **SKILL.md content model** — `instructions_md` / `when_to_use` / `examples_md` / `supporting_files` columns on catalogue + versions; admin UI three-prose-textarea editor; SKILL.md status pill; backfill of historical version rows; full agentskills.io-style prose rewritten for all 6 seeded skills | ✅ |
+| **v0.4** | **Runtime hookup** — desktop calls `POST /agent/extend_system_prompt` (new goosed route) for each installed skill on session start + on resume, injecting Title/when_to_use/instructions_md/examples_md as a system fragment keyed `atlas.skill.<id>` (idempotent) | ✅ |
+| **v0.5** | **Install / usage telemetry** — `skill_installations` + `skill_usage_events` tables; bearer-authed public endpoints `POST /v1/skills/:id/install /uninstall /used`; admin views: Skills Usage summary, per-skill installations, per-skill usage history, per-user skills list | ✅ |
+| v0.6 | **Goosed-side invocation tracking** — desktop POSTs `/v1/skills/:id/used` automatically when an installed skill's tools/prompts run, not only on manual trigger | ⏳ |
+| v0.7 | **Bridge to Goose's built-in Skills mechanism** — instead of (or in addition to) the custom `extend_system_prompt` injection, write each installed skill's bundle to `~/.agents/skills/<skill_id>/SKILL.md` so Goose's native Skills platform extension auto-loads it per agentskills.io spec. Deferred until current v0.4/v0.5 are validated in the field. See [project_atlas_skills_v07](../../../.claude/.../project_atlas_skills_v07.md) memory. | ⏳ |
+| v0.8 | ed25519 manifest signing + verification chain | ⏳ |
+| v0.9 | Per-org allow/deny lists (waits on 021 orgs) | ⏳ |
 
 See [`tasks.md`](tasks.md) for the full task list with file pointers
-and acceptance criteria. Recommended pickup: ROADMAP.md item #1.
+and acceptance criteria. v0.6 + v0.7 are next pickups.
 
 ## Problem
 
