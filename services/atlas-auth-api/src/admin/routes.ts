@@ -52,6 +52,12 @@ import {
   listMembers,
   listOrganizations,
 } from './organizations.js';
+import {
+  getToolUsageBySession,
+  getToolUsageDaily,
+  listToolUsage,
+  type ToolUsageFilters,
+} from './tool-usage.js';
 import { emit as auditEmit } from '../audit.js';
 
 interface AdminEnv {
@@ -366,6 +372,37 @@ export function mountAdmin(app: any, env: AdminEnv): void {
     });
     if (!res.ok) return c.json({ error: res.error }, 400);
     return c.json({ ok: true });
+  });
+
+  // --- Spec 040 v0.2 / Fix-2 — Tool Usage admin views ---
+  function readUsageFilters(c: any): ToolUsageFilters {
+    const u = new URL(c.req.url);
+    return {
+      userId:         u.searchParams.get('user_id')        ?? undefined,
+      organizationId: u.searchParams.get('organization_id') ?? undefined,
+      provider:       u.searchParams.get('provider')        ?? undefined,
+      toolName:       (u.searchParams.get('tool_name') as 'web_search' | 'web_scrape' | null) ?? undefined,
+      status:         (u.searchParams.get('status') as 'ok' | 'quota_exceeded' | 'upstream_error' | null) ?? undefined,
+      sessionId:      u.searchParams.get('session_id')      ?? undefined,
+      since:          u.searchParams.get('since')           ?? undefined,
+      until:          u.searchParams.get('until')           ?? undefined,
+      limit:          u.searchParams.get('limit') ? Number(u.searchParams.get('limit')) : undefined,
+    };
+  }
+
+  admin.get('/v1/tool-usage', async (c) =>
+    c.json(await listToolUsage(pool, readUsageFilters(c))));
+
+  admin.get('/v1/tool-usage/daily', async (c) => {
+    const u = new URL(c.req.url);
+    const days = u.searchParams.get('days') ? Number(u.searchParams.get('days')) : 30;
+    return c.json(await getToolUsageDaily(pool, readUsageFilters(c), days));
+  });
+
+  admin.get('/v1/tool-usage/by-session', async (c) => {
+    const u = new URL(c.req.url);
+    const limit = u.searchParams.get('limit') ? Number(u.searchParams.get('limit')) : 100;
+    return c.json(await getToolUsageBySession(pool, readUsageFilters(c), limit));
   });
 
   // --- Spec 050 v0.1 — Organizations (read-only at v0.1) ---

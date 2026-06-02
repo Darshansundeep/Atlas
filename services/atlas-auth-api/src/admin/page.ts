@@ -632,6 +632,62 @@ export function adminHtml(): string {
           </div>
           <div id="tool-quotas-table"></div>
         </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Tool Usage Log</h2>
+            <span class="hint">spec 040 v0.2 — every web_search / web_scrape call is recorded with user, org, session</span>
+          </div>
+          <div style="padding:1rem;display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end">
+            <label style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.8em;color:var(--muted)">User</span>
+              <select id="tu-filter-user" style="min-width:220px"><option value="">— all —</option></select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.8em;color:var(--muted)">Org</span>
+              <select id="tu-filter-org" style="min-width:220px"><option value="">— all —</option></select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.8em;color:var(--muted)">Provider</span>
+              <select id="tu-filter-provider">
+                <option value="">— all —</option>
+                <option>brave</option><option>tavily</option><option>serper</option>
+                <option>firecrawl</option><option>custom_http</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.8em;color:var(--muted)">Tool</span>
+              <select id="tu-filter-tool">
+                <option value="">— all —</option>
+                <option value="web_search">web_search</option>
+                <option value="web_scrape">web_scrape</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.8em;color:var(--muted)">Status</span>
+              <select id="tu-filter-status">
+                <option value="">— all —</option>
+                <option value="ok">ok</option>
+                <option value="quota_exceeded">quota_exceeded</option>
+                <option value="upstream_error">upstream_error</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.8em;color:var(--muted)">Session id (paste)</span>
+              <input type="text" id="tu-filter-session" placeholder="optional" style="min-width:220px" />
+            </label>
+            <button class="action" id="tu-apply">Apply</button>
+            <button class="action" id="tu-reset">Reset</button>
+          </div>
+          <div id="tu-summary" style="padding:0 1rem 0.5rem;color:var(--muted);font-size:0.85em"></div>
+          <div id="tu-daily"></div>
+          <div id="tu-events"></div>
+          <div class="panel-header" style="margin-top:0.5rem">
+            <h3 style="margin:0;font-size:1em">Top sessions (by call count)</h3>
+            <span class="hint">last 30 days, current filter</span>
+          </div>
+          <div id="tu-sessions"></div>
+        </div>
       </section>
 
       <section class="page" id="page-orgs">
@@ -1182,6 +1238,133 @@ export function adminHtml(): string {
 
   document.getElementById('tool-form-cancel').addEventListener('click', resetToolForm);
 
+  // Tool Usage panel handlers
+  document.getElementById('tu-apply').addEventListener('click', () => {
+    loadToolUsage().catch((e) => toast('Tool usage load failed: ' + (e.message || ''), true));
+  });
+  document.getElementById('tu-reset').addEventListener('click', () => {
+    ['tu-filter-user', 'tu-filter-org', 'tu-filter-provider', 'tu-filter-tool', 'tu-filter-status', 'tu-filter-session']
+      .forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+    loadToolUsage().catch(() => {});
+  });
+
+  function tuQuery() {
+    const u = new URLSearchParams();
+    const fields = ['user', 'org', 'provider', 'tool', 'status', 'session'];
+    const apiKeys = { user: 'user_id', org: 'organization_id', provider: 'provider', tool: 'tool_name', status: 'status', session: 'session_id' };
+    for (const f of fields) {
+      const el = document.getElementById('tu-filter-' + f);
+      const v = (el?.value ?? '').trim();
+      if (v) u.set(apiKeys[f], v);
+    }
+    return u.toString();
+  }
+
+  function renderTuEvents(rows) {
+    const host = document.getElementById('tu-events');
+    if (!rows.length) {
+      host.innerHTML = '<div style="padding:1rem;color:var(--muted)">No events match current filters.</div>';
+      return;
+    }
+    let html = '<table class="data"><thead><tr>'
+      + '<th>When</th><th>User</th><th>Org</th><th>Tool</th><th>Provider</th><th>Status</th><th>Cost</th><th>Query / URL</th><th>Session</th>'
+      + '</tr></thead><tbody>';
+    for (const r of rows) {
+      const q = (r.context && (r.context.query || r.context.url)) || '';
+      const sessionShort = r.session_id ? r.session_id.slice(0, 8) : '—';
+      const statusClass = r.status === 'ok' ? 'pill' : 'pill danger';
+      html += '<tr>'
+        + '<td class="mono" style="font-size:0.85em">' + new Date(r.occurred_at).toLocaleString() + '</td>'
+        + '<td class="email">' + escape(r.user_email ?? r.user_id.slice(0, 8)) + '</td>'
+        + '<td>' + escape(r.organization_name ?? '—') + '</td>'
+        + '<td>' + escape(r.tool_name) + '</td>'
+        + '<td>' + escape(r.provider) + '</td>'
+        + '<td><span class="' + statusClass + '">' + escape(r.status) + '</span></td>'
+        + '<td class="mono">$' + Number(r.cost_usd).toFixed(6) + '</td>'
+        + '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escape(String(q)) + '">' + escape(String(q).slice(0, 60)) + '</td>'
+        + '<td class="mono" style="font-size:0.8em" title="' + escape(r.session_id ?? '') + '">' + escape(sessionShort) + '</td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    host.innerHTML = html;
+  }
+
+  function renderTuDaily(rows) {
+    const host = document.getElementById('tu-daily');
+    if (!rows.length) { host.innerHTML = ''; return; }
+    let html = '<table class="data" style="margin-bottom:1rem"><thead><tr>'
+      + '<th>Day</th><th>Searches</th><th>Scrapes</th><th>OK</th><th>Refused</th><th>Cost USD</th></tr></thead><tbody>';
+    for (const r of rows) {
+      html += '<tr>'
+        + '<td class="mono">' + escape(r.day) + '</td>'
+        + '<td>' + r.searches + '</td>'
+        + '<td>' + r.scrapes + '</td>'
+        + '<td>' + r.ok_calls + '</td>'
+        + '<td>' + r.refused_calls + '</td>'
+        + '<td class="mono">$' + Number(r.cost_usd).toFixed(6) + '</td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    host.innerHTML = html;
+  }
+
+  function renderTuSessions(rows) {
+    const host = document.getElementById('tu-sessions');
+    if (!rows.length) {
+      host.innerHTML = '<div style="padding:1rem;color:var(--muted)">No sessions tracked yet — session_id was added 2026-06-02. Older events show "—".</div>';
+      return;
+    }
+    let html = '<table class="data"><thead><tr>'
+      + '<th>Session id</th><th>User</th><th>Calls</th><th>Cost</th><th>First</th><th>Last</th><th></th>'
+      + '</tr></thead><tbody>';
+    for (const r of rows) {
+      const short = r.session_id.slice(0, 8);
+      html += '<tr>'
+        + '<td class="mono" title="' + escape(r.session_id) + '">' + escape(short) + '</td>'
+        + '<td class="email">' + escape(r.user_email ?? r.user_id.slice(0, 8)) + '</td>'
+        + '<td>' + r.calls + '</td>'
+        + '<td class="mono">$' + Number(r.cost_usd).toFixed(6) + '</td>'
+        + '<td style="font-size:0.85em">' + new Date(r.first_call_at).toLocaleString() + '</td>'
+        + '<td style="font-size:0.85em">' + new Date(r.last_call_at).toLocaleString() + '</td>'
+        + '<td><button class="action" data-act="tu-drill-session" data-sid="' + escape(r.session_id) + '">View only this session</button></td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    host.innerHTML = html;
+  }
+
+  async function loadToolUsage() {
+    const q = tuQuery();
+    const [events, daily, sessions] = await Promise.all([
+      api('/admin/v1/tool-usage?' + q + '&limit=200'),
+      api('/admin/v1/tool-usage/daily?' + q + '&days=30'),
+      api('/admin/v1/tool-usage/by-session?' + q + '&limit=50'),
+    ]);
+    renderTuDaily(daily);
+    renderTuEvents(events);
+    renderTuSessions(sessions);
+    const totalCalls = events.length;
+    const totalCost = events.reduce((s, r) => s + Number(r.cost_usd || 0), 0);
+    document.getElementById('tu-summary').textContent =
+      'Showing ' + totalCalls + ' events · total cost $' + totalCost.toFixed(6) + ' · filters: ' + (q || '(none)');
+  }
+
+  async function populateToolUsageDropdowns() {
+    // Reuse People + Orgs data already loaded; degrade gracefully if not.
+    try {
+      const users = await api('/admin/v1/users');
+      const sel = document.getElementById('tu-filter-user');
+      sel.innerHTML = '<option value="">— all —</option>' +
+        users.map((u) => '<option value="' + escape(u.id) + '">' + escape(u.email) + '</option>').join('');
+    } catch (e) { /* keep empty */ }
+    try {
+      const orgs = await api('/admin/v1/organizations');
+      const sel = document.getElementById('tu-filter-org');
+      sel.innerHTML = '<option value="">— all —</option>' +
+        orgs.map((o) => '<option value="' + escape(o.id) + '">' + escape(o.display_name) + '</option>').join('');
+    } catch (e) { /* keep empty */ }
+  }
+
   async function loadOrganizations() {
     const rows = await api('/admin/v1/organizations');
     const host = document.getElementById('orgs-table');
@@ -1230,7 +1413,7 @@ export function adminHtml(): string {
 
   async function loadAll() {
     try {
-      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary(), loadToolProviders(), loadToolQuotas(), loadToolTemplates(), loadOrganizations()]);
+      await Promise.all([loadStats(), loadPeople(), loadSessions(), loadAudit(), loadRecentAudit(), loadCatalogue(), loadSkills(), loadSkillsUsageSummary(), loadToolProviders(), loadToolQuotas(), loadToolTemplates(), loadOrganizations(), populateToolUsageDropdowns(), loadToolUsage()]);
     } catch (e) {
       if (e.status === 401) {
         sessionStorage.removeItem('atlas_admin_token');
@@ -1295,6 +1478,12 @@ export function adminHtml(): string {
       } catch (err) {
         toast('Delete failed: ' + (err.message || 'unknown'), true);
       }
+    }
+    if (btn && btn.dataset.act === 'tu-drill-session') {
+      const sid = btn.dataset.sid;
+      document.getElementById('tu-filter-session').value = sid;
+      loadToolUsage().catch(() => {});
+      return;
     }
     if (btn && btn.dataset.act === 'save-quota') {
       const tier = btn.dataset.tier;

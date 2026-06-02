@@ -123,6 +123,7 @@ export async function recordToolUsage(
   row: {
     userId: string;
     organizationId: string | null;
+    sessionId: string | null;
     toolName: 'web_search' | 'web_scrape';
     provider: string;
     inputSize: number;
@@ -134,12 +135,13 @@ export async function recordToolUsage(
 ): Promise<void> {
   await pool.query(
     `INSERT INTO tool_usage_events
-        (id, user_id, organization_id, tool_name, provider,
+        (id, user_id, organization_id, session_id, tool_name, provider,
          input_size, output_size, cost_usd, status, context)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       row.userId,
       row.organizationId,
+      row.sessionId,
       row.toolName,
       row.provider,
       row.inputSize,

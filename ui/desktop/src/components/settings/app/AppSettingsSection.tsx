@@ -6,6 +6,7 @@ import { Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
 import UpdateSection from './UpdateSection';
 import AtlasAccountCard from './AtlasAccountCard';
+import AtlasTeamCard from './AtlasTeamCard';
 
 import { COST_TRACKING_ENABLED, UPDATES_ENABLED } from '../../../updates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
@@ -258,6 +259,7 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
   return (
     <div className="space-y-4 pr-4 pb-8 mt-1">
       <AtlasAccountCard />
+      <AtlasTeamCard />
       <Card className="rounded-lg">
         <CardHeader className="pb-0">
           <CardTitle className="">{intl.formatMessage(i18n.appearanceTitle)}</CardTitle>

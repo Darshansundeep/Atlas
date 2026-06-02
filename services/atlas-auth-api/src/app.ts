@@ -29,6 +29,13 @@ import { mountAdmin } from './admin/routes.js';
 import { listSkills, recordInstall, recordUninstall, recordUsage } from './admin/queries.js';
 import { ensurePersonalOrg } from './admin/organizations.js';
 import {
+  acceptInvitation,
+  createInvitation,
+  createTeamOrganization,
+  listMyOrganizations,
+  userIsMemberWithRole,
+} from './admin/invitations.js';
+import {
   decryptApiKey,
   getToolProvider,
   type ToolProviderType,
@@ -457,6 +464,7 @@ export function createApp(env: Env) {
       query?: string;
       count?: number;
       provider?: string;
+      session_id?: string;
     } | null;
     if (!body || typeof body.query !== 'string' || !body.query.trim()) {
       return c.json({ error: 'invalid_request', detail: 'query required' }, 400);
@@ -464,6 +472,7 @@ export function createApp(env: Env) {
     const providerName = body.provider ?? 'brave';
     const count = typeof body.count === 'number' ? body.count : 10;
     const orgId = claims.org?.id ?? null;
+    const sessionId = typeof body.session_id === 'string' && body.session_id ? body.session_id : null;
 
     // Preflight (Principle V — refuse BEFORE upstream)
     const pf = await preflight(pool, {
@@ -474,11 +483,11 @@ export function createApp(env: Env) {
     });
     if (!pf.ok) {
       await recordToolUsage(pool, {
-        userId: claims.sub, organizationId: orgId,
+        userId: claims.sub, organizationId: orgId, sessionId,
         toolName: 'web_search', provider: providerName,
         inputSize: body.query.length, outputSize: 0,
         costUsd: 0, status: 'quota_exceeded',
-        context: { reason: pf.reason, detail: pf.detail },
+        context: { reason: pf.reason, detail: pf.detail, query: body.query },
       });
       return c.json({ error: pf.reason, detail: pf.detail }, 402);
     }
@@ -488,7 +497,7 @@ export function createApp(env: Env) {
         providerName, 'search', body.query, count
       );
       await recordToolUsage(pool, {
-        userId: claims.sub, organizationId: orgId,
+        userId: claims.sub, organizationId: orgId, sessionId,
         toolName: 'web_search', provider: providerType,
         inputSize: adapter.input_size, outputSize: adapter.output_size,
         costUsd: adapter.cost_usd, status: adapter.status,
@@ -510,12 +519,14 @@ export function createApp(env: Env) {
     const body = (await c.req.json().catch(() => null)) as {
       url?: string;
       provider?: string;
+      session_id?: string;
     } | null;
     if (!body || typeof body.url !== 'string' || !body.url.startsWith('http')) {
       return c.json({ error: 'invalid_request', detail: 'http(s) url required' }, 400);
     }
     const providerName = body.provider ?? 'firecrawl';
     const orgId = claims.org?.id ?? null;
+    const sessionId = typeof body.session_id === 'string' && body.session_id ? body.session_id : null;
 
     const pf = await preflight(pool, {
       userId: claims.sub,
@@ -525,11 +536,11 @@ export function createApp(env: Env) {
     });
     if (!pf.ok) {
       await recordToolUsage(pool, {
-        userId: claims.sub, organizationId: orgId,
+        userId: claims.sub, organizationId: orgId, sessionId,
         toolName: 'web_scrape', provider: providerName,
         inputSize: body.url.length, outputSize: 0,
         costUsd: 0, status: 'quota_exceeded',
-        context: { reason: pf.reason, detail: pf.detail },
+        context: { reason: pf.reason, detail: pf.detail, url: body.url },
       });
       return c.json({ error: pf.reason, detail: pf.detail }, 402);
     }
@@ -539,7 +550,7 @@ export function createApp(env: Env) {
         providerName, 'scrape', body.url, 1
       );
       await recordToolUsage(pool, {
-        userId: claims.sub, organizationId: orgId,
+        userId: claims.sub, organizationId: orgId, sessionId,
         toolName: 'web_scrape', provider: providerType,
         inputSize: adapter.input_size, outputSize: adapter.output_size,
         costUsd: adapter.cost_usd, status: adapter.status,
@@ -554,6 +565,111 @@ export function createApp(env: Env) {
       const err = e as { message?: string; httpStatus?: number };
       return c.json({ error: err.message ?? 'unknown' }, (err.httpStatus ?? 500) as 500);
     }
+  });
+
+  // --- Spec 050 v0.2 — Self-serve teams + invitations ---
+
+  // List the orgs the current user belongs to (personal + every team).
+  app.get('/v1/organizations/me', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const orgs = await listMyOrganizations(pool, claims.sub);
+    return c.json({
+      active_org_id: claims.org?.id ?? null,
+      organizations: orgs,
+    });
+  });
+
+  // Create a new team org. The caller becomes its `owner`.
+  app.post('/v1/organizations', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const body = (await c.req.json().catch(() => null)) as {
+      display_name?: string;
+      plan?: 'free' | 'pro' | 'team' | 'business' | 'enterprise';
+    } | null;
+    if (!body || typeof body.display_name !== 'string' || !body.display_name.trim()) {
+      return c.json({ error: 'invalid_request', detail: 'display_name required' }, 400);
+    }
+    const result = await createTeamOrganization(pool, {
+      ownerUserId: claims.sub,
+      displayName: body.display_name.trim().slice(0, 80),
+      plan: body.plan ?? 'free',
+    });
+    return c.json({ id: result.id, slug: result.slug, role: 'owner' as const });
+  });
+
+  // Generate an invite code for an org you own/admin. Code is paste-shared.
+  app.post('/v1/organizations/:id/invitations', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const orgId = c.req.param('id');
+    const role = await userIsMemberWithRole(pool, claims.sub, orgId);
+    if (role !== 'owner' && role !== 'admin') {
+      return c.json({ error: 'forbidden', detail: 'owner or admin role required' }, 403);
+    }
+    const body = (await c.req.json().catch(() => null)) as {
+      email?: string;
+      role?: 'admin' | 'member' | 'viewer';
+    } | null;
+    if (!body || typeof body.email !== 'string' || !body.email.includes('@')) {
+      return c.json({ error: 'invalid_request', detail: 'email required' }, 400);
+    }
+    const inv = await createInvitation(pool, {
+      organizationId: orgId,
+      inviterUserId: claims.sub,
+      email: body.email,
+      role: body.role ?? 'member',
+    });
+    return c.json({
+      id: inv.id,
+      code: inv.code,                   // ONLY returned at creation time
+      expires_at: inv.expires_at,
+    });
+  });
+
+  // Accept an invite code. Caller is signed in; the code identifies the org.
+  app.post('/v1/invitations/accept', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const body = (await c.req.json().catch(() => null)) as { code?: string } | null;
+    if (!body || typeof body.code !== 'string') {
+      return c.json({ error: 'invalid_request', detail: 'code required' }, 400);
+    }
+    const result = await acceptInvitation(pool, claims.sub, body.code);
+    if (!result.ok) {
+      const code = result.reason;
+      return c.json({ error: code }, code === 'invalid_code' ? 404 : 409);
+    }
+    return c.json({
+      ok: true,
+      organization_id: result.organization_id,
+      role: result.role,
+    });
+  });
+
+  // Switch the access token's active org. Re-signs immediately; client
+  // replaces its token. Verifies membership first.
+  app.post('/v1/auth/switch-org', requireAccess, async (c) => {
+    const claims = c.get('claims');
+    const body = (await c.req.json().catch(() => null)) as { organization_id?: string } | null;
+    if (!body || typeof body.organization_id !== 'string') {
+      return c.json({ error: 'invalid_request', detail: 'organization_id required' }, 400);
+    }
+    const role = await userIsMemberWithRole(pool, claims.sub, body.organization_id);
+    if (!role) return c.json({ error: 'not_a_member' }, 403);
+
+    const sub = (await getSubscription(pool, claims.sub)) ?? null;
+    const tier = sub?.tier ?? 'free';
+    const fresh = await signAccessToken(env.JWT_SIGNING_SECRET, {
+      sub: claims.sub,
+      email: claims.email,
+      sub_tier: tier,
+      device_install_id: claims.device_install_id,
+      org: { id: body.organization_id, role },
+    });
+    return c.json({
+      access_token: fresh,
+      token_type: 'Bearer',
+      expires_in: 900,
+      org: { id: body.organization_id, role },
+    });
   });
 
   app.get('/v1/subscription', requireAccess, async (c) => {

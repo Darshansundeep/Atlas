@@ -103,7 +103,11 @@ impl AtlasWebClient {
         std::env::var("ATLAS_ACCESS_TOKEN").ok()
     }
 
-    async fn do_search(&self, params: WebSearchParams) -> Result<Vec<Content>, String> {
+    async fn do_search(
+        &self,
+        session_id: &str,
+        params: WebSearchParams,
+    ) -> Result<Vec<Content>, String> {
         let backend = Self::backend_url()
             .ok_or_else(|| "ATLAS_AUTH_BACKEND_URL not set — sign in to Atlas".to_string())?;
         let token = Self::access_token()
@@ -112,6 +116,7 @@ impl AtlasWebClient {
             "query": params.query,
             "count": params.count.unwrap_or(10),
             "provider": params.provider.unwrap_or_else(|| "brave".to_string()),
+            "session_id": session_id,
         });
         let res = self
             .http
@@ -130,7 +135,11 @@ impl AtlasWebClient {
         Ok(vec![Content::text(text)])
     }
 
-    async fn do_scrape(&self, params: WebScrapeParams) -> Result<Vec<Content>, String> {
+    async fn do_scrape(
+        &self,
+        session_id: &str,
+        params: WebScrapeParams,
+    ) -> Result<Vec<Content>, String> {
         let backend = Self::backend_url()
             .ok_or_else(|| "ATLAS_AUTH_BACKEND_URL not set — sign in to Atlas".to_string())?;
         let token = Self::access_token()
@@ -138,6 +147,7 @@ impl AtlasWebClient {
         let body = serde_json::json!({
             "url": params.url,
             "provider": params.provider.unwrap_or_else(|| "firecrawl".to_string()),
+            "session_id": session_id,
         });
         let res = self
             .http
@@ -213,23 +223,24 @@ impl McpClientTrait for AtlasWebClient {
 
     async fn call_tool(
         &self,
-        _ctx: &ToolCallContext,
+        ctx: &ToolCallContext,
         name: &str,
         arguments: Option<JsonObject>,
         _cancellation_token: CancellationToken,
     ) -> Result<CallToolResult, Error> {
+        let session_id = ctx.session_id.as_str();
         let result = match name {
             "web_search" => {
                 let args = arguments.unwrap_or_default();
                 match serde_json::from_value::<WebSearchParams>(serde_json::Value::Object(args)) {
-                    Ok(p) => self.do_search(p).await,
+                    Ok(p) => self.do_search(session_id, p).await,
                     Err(e) => Err(format!("invalid web_search params: {e}")),
                 }
             }
             "web_scrape" | "read_url" => {
                 let args = arguments.unwrap_or_default();
                 match serde_json::from_value::<WebScrapeParams>(serde_json::Value::Object(args)) {
-                    Ok(p) => self.do_scrape(p).await,
+                    Ok(p) => self.do_scrape(session_id, p).await,
                     Err(e) => Err(format!("invalid {} params: {e}", name)),
                 }
             }

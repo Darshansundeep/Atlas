@@ -46,6 +46,12 @@ interface AuthContextValue extends AuthState {
   refresh: () => Promise<boolean>;
   signOut: () => Promise<void>;
   reloadSubscription: () => Promise<void>;
+  /**
+   * Spec 050 v0.2 — swap the in-memory access token in place after
+   * /v1/auth/switch-org. Refresh token is unchanged (still valid for the
+   * same user); only the access token's `org` claim changes.
+   */
+  applyAccessToken: (token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -248,6 +254,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [state.accessToken]);
 
+  const applyAccessToken = useCallback((token: string) => {
+    setState((s) => ({ ...s, accessToken: token }));
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
@@ -255,8 +265,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       signOut,
       reloadSubscription,
+      applyAccessToken,
     }),
-    [state, acceptGrant, refresh, signOut, reloadSubscription]
+    [state, acceptGrant, refresh, signOut, reloadSubscription, applyAccessToken]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -130,3 +130,101 @@ export async function getSubscription(accessToken: string): Promise<Subscription
   if (!res.ok) throw await readError(res);
   return (await res.json()) as SubscriptionState;
 }
+
+// ---------------------------------------------------------------------------
+// Spec 050 v0.2 — self-serve teams + invitations
+
+export type OrgRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+export interface OrgMembership {
+  id: string;
+  slug: string;
+  display_name: string;
+  plan: string;
+  role: OrgRole;
+  is_personal: boolean;
+  member_count: number;
+}
+
+export interface MyOrgsResponse {
+  active_org_id: string | null;
+  organizations: OrgMembership[];
+}
+
+export async function listMyOrgs(accessToken: string): Promise<MyOrgsResponse> {
+  const res = await fetch(`${authBackendUrl()}/v1/organizations/me`, {
+    headers: { authorization: `Bearer ${accessToken}`, 'x-atlas-request-id': newReqId() },
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as MyOrgsResponse;
+}
+
+export async function createTeamOrg(
+  accessToken: string,
+  displayName: string
+): Promise<{ id: string; slug: string; role: OrgRole }> {
+  const res = await fetch(`${authBackendUrl()}/v1/organizations`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      'x-atlas-request-id': newReqId(),
+    },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as never;
+}
+
+export async function createOrgInvitation(
+  accessToken: string,
+  orgId: string,
+  email: string,
+  role: 'admin' | 'member' | 'viewer' = 'member'
+): Promise<{ id: string; code: string; expires_at: string }> {
+  const res = await fetch(`${authBackendUrl()}/v1/organizations/${orgId}/invitations`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      'x-atlas-request-id': newReqId(),
+    },
+    body: JSON.stringify({ email, role }),
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as never;
+}
+
+export async function acceptOrgInvitation(
+  accessToken: string,
+  code: string
+): Promise<{ ok: true; organization_id: string; role: OrgRole }> {
+  const res = await fetch(`${authBackendUrl()}/v1/invitations/accept`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      'x-atlas-request-id': newReqId(),
+    },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as never;
+}
+
+export async function switchActiveOrg(
+  accessToken: string,
+  organizationId: string
+): Promise<{ access_token: string; expires_in: number; org: { id: string; role: OrgRole } }> {
+  const res = await fetch(`${authBackendUrl()}/v1/auth/switch-org`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      'x-atlas-request-id': newReqId(),
+    },
+    body: JSON.stringify({ organization_id: organizationId }),
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as never;
+}

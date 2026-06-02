@@ -321,6 +321,14 @@ CREATE TABLE IF NOT EXISTS organization_tool_providers (
 
 ALTER TABLE usage_events        ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
 ALTER TABLE tool_usage_events   ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+
+-- Spec 040 v0.2 / Fix-1 — capture session_id so the admin can pivot
+-- "web searches per session" alongside per-user / per-org / per-day.
+-- Nullable: only goosed-originated calls have a session; out-of-band
+-- proxy calls (admin smoke tests etc.) can leave it NULL.
+ALTER TABLE tool_usage_events   ADD COLUMN IF NOT EXISTS session_id TEXT;
+CREATE INDEX IF NOT EXISTS tool_usage_events_session_idx
+  ON tool_usage_events(session_id, occurred_at DESC) WHERE session_id IS NOT NULL;
 ALTER TABLE skill_usage_events  ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
 ALTER TABLE skill_installations ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
 ALTER TABLE audit_events        ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
